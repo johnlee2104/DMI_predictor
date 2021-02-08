@@ -2,6 +2,10 @@ import sys
 sys.path.append('/Users/johnlee/Coding/Python/DMI/')
 import re, random, json, itertools
 from iupred2a import iupred2a_lib
+
+"""RRSv1 invovles generating random reference set for the SVM by performing randomization on protein pairs from the PRS
+and filtering out random pairs that coincide with known PPIs. The resulting pairs are scanned for SLiM matches and domain
+matches and DMI matches are detected between the random pairs."""
 # can be inherited
 class SLiMType:
 
@@ -100,7 +104,7 @@ class DomainInterfaceMatch:
         # should only contain more than one domain match for domain interfaces that either
         # have a domain count > 1 or that consist of more than 1 different domain types
         self.domain_matches = domain_matches # saves the DomainMatch obj JL: saved as tuple if its two domains to form an interface
-        self.domain_matches_count = [] # saves an integer that counts the number of a domain match in the protein (Added by John)
+        # self.domain_matches_count = [] # saves an integer that counts the number of a domain match in the protein (Added by John)
 #        self.domain_interface_coverage = None
 #        self.min_dom_freq = None
 
@@ -746,7 +750,9 @@ class RRSFormation:
             #     , str(inst.domain_interface_match.domain_match[1].end), str(inst.domain_interface_match.domain_matches_count[1][1]))))
             #     file.write('\n')
         file.close()
-# if __main__ == '__name__':
+
+if  __name__ == '__main__':
+    print('You can do this! Good luck predicting!')
 #
 #     lig_pdz_1 = SLiMType('ELM95757585')
 #     lig_pdz_1.name = 'LIG_PDZ_1'
