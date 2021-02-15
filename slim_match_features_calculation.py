@@ -1,9 +1,9 @@
 # Keeps all the function that calculates the SLiM match features and output it as files.
 import sys
-sys.path.append('/Users/johnlee/Coding/Python/DMI/')
+sys.path.append('/Users/chopyanlee/Coding/Python/DMI/')
 from iupred2a import iupred2a_lib
 
-out_path= '/Users/johnlee/Coding/Python/DMI/PRS_RRS_union_sequences_features/'
+out_path= '/Users/chopyanlee/Coding/Python/DMI/PRS_RRS_union_sequences_features/'
 
 def calculate_iupred_long(input_file):
     with open(input_file, 'r') as f:
@@ -16,17 +16,17 @@ def calculate_iupred_long(input_file):
     with open(out_path + 'IUPred_long/' + protein_id + '_iupredlong.txt', 'w') as f:
         f.write(protein_id + '\n')
         for pos, residue in enumerate(seq):
-            f.write(f'{pos+1}\t{residue}\t{result_iupredlong[pos]:.4f}\n')
+            f.write(f'{pos+1}\t{residue}\t{result_iupredlong[pos]}\n')
         f.close()
     with open(out_path + 'IUPred_short/' + protein_id + '_iupredshort.txt', 'w') as f:
         f.write(protein_id + '\n')
         for pos, residue in enumerate(seq):
-            f.write(f'{pos+1}\t{residue}\t{result_iupredlong[pos]:.4f}\n')
+            f.write(f'{pos+1}\t{residue}\t{result_iupredshort[pos]}\n')
         f.close()
     with open(out_path + 'Anchor/' + protein_id + '_anchor.txt', 'w') as f:
         f.write(protein_id + '\n')
         for pos, residue in enumerate(seq):
-            f.write(f'{pos+1}\t{residue}\t{result_iupredlong[pos]:.4f}\n')
+            f.write(f'{pos+1}\t{residue}\t{result_anchor[pos]}\n')
         f.close()
     print(f'{protein_id} calculated')
 
