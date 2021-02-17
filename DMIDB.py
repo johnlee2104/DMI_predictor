@@ -7,6 +7,7 @@ class Protein(protein_interaction_interfaces.Protein):
         self.IUPLong_scores= []
         self.IUPShort_scores= []
         self.Anchor_scores= []
+        self.domain_overlap_scores= []
 
     def create_slim_matches(self):
         for slim_id, slim_type_inst in InterfaceHandling.SLiM_types_dict.items():
@@ -141,9 +142,9 @@ class InterfaceHandling(protein_interaction_interfaces.InterfaceHandling):
 
     def read_in_domain_matches(self): # this one reads in only domain matches involved in DMI
         if len(self.domain_types_dict) == 0:
-            self.read_in_domain_types()
             print('Warning: No DMI types have been read in before')
             print('Reading in domain types now...')
+            self.read_in_domain_types()
         with open(self.domain_matches_json_file) as f:
             data= json.load(f)
         for result in data['results']:

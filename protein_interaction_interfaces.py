@@ -16,7 +16,8 @@ class DomainType:
         self.domain_id= domain_id
         self.name= ''
         self.source= ''
-        self.frequency= None
+        self.protein_frequency= None
+        self.proteome_frequency= None
 
 class DomainMatch:
     def __init__(self, domain_id, start, end):
