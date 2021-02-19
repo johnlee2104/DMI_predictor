@@ -6,12 +6,11 @@ import sys, json
 def calculate_domain_frequency(domain_type_file):
     with open(domain_type_file, 'r') as f:
         lines= [line.strip() for line in f.readlines()]
+    total_human_protein= 20396
     if 'smart' in domain_type_file:
         data= smart_domain_matches
-        total_protein= len(data['results'])
     elif 'pfam' in domain_type_file:
         data= pfam_domain_matches
-        total_protein= len(data['results'])
     domain_match_in_protein= {} # No. of protein with at least 1 domain match: 2 repeat matches in 1 protein = 1
     total_domain_match_in_proteome= {} # Total number of domain match in the human proteome: 2 repeat matches in 1 protein = 2
     for line in lines[2:]:
@@ -32,8 +31,8 @@ def calculate_domain_frequency(domain_type_file):
             tab= line.split('\t')
             domain_id= tab[1]
             if domain_id in domain_match_in_protein:
-                f.write('\t'.join((line, str(domain_match_in_protein[domain_id]/total_protein),
-                str(total_domain_match_in_proteome[domain_id]/total_protein))))
+                f.write('\t'.join((line, str(domain_match_in_protein[domain_id]/total_human_protein),
+                str(total_domain_match_in_proteome[domain_id]/total_human_protein))))
                 f.write('\n')
             else:
                 f.write('\t'.join((line, 'NA', 'NA'))) # Some domains are found only in certain taxon, and not human proteome
