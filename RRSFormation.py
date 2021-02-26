@@ -4,29 +4,27 @@ class RRSFormation:
     def __init__(self, RRS_version, dump_file= None, write_file= None):
         self.RRS_instances= []
         self.RRS_version= RRS_version
-        if dump_file is None:
+        if dump_file == None:
             self.dump_file= str(RRS_version) + '.pickle'
         else:
             self.dump_file= dump_file
-        if write_file is None:
+        if write_file == None:
             self.write_file= str(RRS_version) + '.tsv'
         else:
             self.write_file= write_file
 
     def dump_RRSFormation_instance(self):
         from pickle import dump
-        with open(self.dump_file, 'wb') as pickle_file: 
+        with open(self.dump_file, 'wb') as pickle_file:
             dump(self, pickle_file)
+        print(f'{self.RRS_version} is picked as {self.dump_file}.')
 
-    def write_out_RRS_instances(self): # take RRS_version as argument to construct the file name of the output file
+    def write_out_RRS_instances(self, InterfaceHandling): # take RRS_version as argument to construct the file name of the output file
         file= open(self.write_file, 'w')
-        file.write('\t'.join((' ', 'Elm', 'interactorElm', 'ElmMatch', 'IUPredLong', 'IUPredShort', 'Anchor',
-        'interactorDomain', 'Domain_ID1', 'DomainMatch1', 'Evalue1', 'Domain_ID2', 'DomainMatch2', 'Evalue2')))
+        file.write('\t'.join((' ', 'Accession', 'Elm', 'Regex', 'Probability', 'interactorElm', 'ElmMatch', 'interactorDomain', 'DomainID1', 'DomainMatch1', 'DomainMatchEvalue1', 'DomainID2', 'DomainMatch2', 'DomainMatchEvalue2')))
         file.write('\n')
         for i , inst in enumerate(self.RRS_instances):
-            file.write('\t'.join((str(i+1), self.SLiM_types_dict[inst.slim_match.slim_id].name, inst.slim_protein ,
-            '-'.join([str(inst.slim_match.start) , str(inst.slim_match.end)]), str(inst.slim_match.IUPLong),
-            str(inst.slim_match.IUPShort), str(inst.slim_match.Anchor), inst.domain_protein)))
+            file.write('\t'.join((str(i+1), inst.slim_match.slim_id, InterfaceHandling.SLiM_types_dict[inst.slim_match.slim_id].name, InterfaceHandling.SLiM_types_dict[inst.slim_match.slim_id].regex, InterfaceHandling.SLiM_types_dict[inst.slim_match.slim_id].probability, inst.slim_protein, '-'.join([str(inst.slim_match.start) , str(inst.slim_match.end)]), inst.domain_protein)))
             for domain_match_list in inst.domain_interface_match.domain_matches:
                 domain_id= domain_match_list[0].domain_id
                 start= [domain_match.start for domain_match in domain_match_list]
@@ -38,3 +36,4 @@ class RRSFormation:
                 file.write('\t'.join((domain_id, match, evalues)))
             file.write('\n')
         file.close()
+        print(f'{self.RRS_version} file saved as {self.write_file}.')

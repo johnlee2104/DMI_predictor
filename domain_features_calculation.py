@@ -23,7 +23,7 @@ def calculate_domain_frequency(domain_type_file):
                     total_domain_match_in_proteome[domain_id]= total_domain_match_in_proteome.get(domain_id, 0) + len(domain_match_id['entry_protein_locations'])
                     print(f'Frequency of {domain_id} calculated.')
     with open(domain_type_file[:-4] + '_with_frequency.txt', 'w') as f:
-        f.write('\t'.join((lines[0], 'ProteinMatch', 'ProteomeMatch')))
+        f.write('\t'.join((lines[0], 'DomainFreqbyProtein', 'DomainFreqinProteome')))
         f.write('\n')
         f.write(lines[1])
         f.write('\n')
@@ -31,9 +31,14 @@ def calculate_domain_frequency(domain_type_file):
             tab= line.split('\t')
             domain_id= tab[1]
             if domain_id in domain_match_in_protein:
-                f.write('\t'.join((line, str(domain_match_in_protein[domain_id]/total_human_protein),
-                str(total_domain_match_in_proteome[domain_id]/total_human_protein))))
-                f.write('\n')
+                if len(tab)== 2:
+                    f.write('\t'.join((line, 'NA', str(domain_match_in_protein[domain_id]/total_human_protein),
+                    str(total_domain_match_in_proteome[domain_id]/total_human_protein))))
+                    f.write('\n')
+                else:
+                    f.write('\t'.join((line, str(domain_match_in_protein[domain_id]/total_human_protein),
+                    str(total_domain_match_in_proteome[domain_id]/total_human_protein))))
+                    f.write('\n')
             else:
                 f.write('\t'.join((line, 'NA', 'NA'))) # Some domains are found only in certain taxon, and not human proteome
                 f.write('\n')

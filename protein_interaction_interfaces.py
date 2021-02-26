@@ -1,5 +1,7 @@
-import sys
-""" Comments... """
+import glob
+""" This python script includes basal objects and functions useful for the prediction of protein interaction interface.
+These basal objects and functions form the basis for DMI and DDI prediction. """
+
 class Protein:
     def __init__(self, protein_id):
         self.protein_id= protein_id
@@ -16,8 +18,8 @@ class DomainType:
         self.domain_id= domain_id
         self.name= ''
         self.source= ''
-        self.protein_frequency= None
-        self.proteome_frequency= None
+        self.DomainFreqbyProtein= None
+        self.DomainFreqinProteome= None
 
 class DomainMatch:
     def __init__(self, domain_id, start, end):
@@ -42,17 +44,22 @@ class InterfaceHandling:
         self.known_PPIs= []
         self.protein_pairs_dict= {}
 
-    def read_in_proteins(self, in_file):
-        with open(protein_id_seq_file,'r') as file:
-            lines = [line.strip() for line in file.readlines()]
-        for line in lines:
-            if line[0] == '>':
-                tab= line.split('|')
-                protein_id= tab[1]
-                prot_inst= Protein(protein_id)
-                self.proteins_dict[protein_id]= prot_inst
-            else:
-                self.proteins_dict[protein_id].sequence += line
+    def read_in_proteins(self, prot_path, canonical= True):
+        if canonical== False:
+            file_names= [file_name for file_name in glob.glob(prot_path + '/*')]
+        else:
+            file_names= [file_name for file_name in glob.glob(prot_path + '/*') if '-' not in file_name]
+        for file_name in file_names:
+            with open(file_name,'r') as file:
+                lines = [line.strip() for line in file.readlines()]
+            for line in lines:
+                if line[0] == '>':
+                    protein_id= line[1:]
+                    prot_inst= Protein(protein_id)
+                    self.proteins_dict[protein_id]= prot_inst
+                else:
+                    self.proteins_dict[protein_id].sequence = line
+        print(f'{len(self.proteins_dict)} proteins read in.')
 
     def read_in_domain_types(self, in_file): # This one reads in all domain types, useful for DDI predictor
         with open(domain_types_file, 'r') as file:
@@ -77,6 +84,7 @@ class InterfaceHandling:
             tab= line.split('\t')
             PPI_instance= sorted(list([tab[0], tab[1]])) # a sorted protein pair as list
             self.known_PPIs.append(tuple(PPI_instance)) # PPI pair saved as tuple
+        print(f'{len(self.known_PPIs)} PPIs read in.')
 
     def read_in_domain_matches(self): # This one reads in all domain matches, useful for DDI predictor
         with open(domain_matches_json_file) as f:
