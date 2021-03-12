@@ -1,6 +1,8 @@
 from protein_interaction_interfaces import *
 import protein_interaction_interfaces
-import re, json
+import re, json, requests
+import scipy.special as sc
+import numpy as np
 
 class Protein(protein_interaction_interfaces.Protein):
     def __init__(self, protein_id):
@@ -10,10 +12,12 @@ class Protein(protein_interaction_interfaces.Protein):
         self.IUPredShort_scores= []
         self.Anchor_scores= []
         self.DomainOverlap_scores= []
+        self.qfo_RLC_scores= []
+        self.vertebrates_RLC_scores= []
+        self.mammalia_RLC_scores= []
+        self.metazoa_RLC_scores= []
 
     def create_slim_matches(self, slim_type_inst):
-        # print(InterfaceHandling.SLiM_types_dict)
-        # for slim_id, slim_type_inst in InterfaceHandling.SLiM_types_dict.items():
         slim_start= [match.start() + 1 for match in re.finditer('(?=(' + slim_type_inst.regex + '))', self.sequence)]
         match_pattern= [match.group(1) for match in re.finditer('(?=(' + slim_type_inst.regex + '))', self.sequence)]
         match_results= list(zip(slim_start, match_pattern))
@@ -21,6 +25,8 @@ class Protein(protein_interaction_interfaces.Protein):
             self.slim_matches_dict[slim_type_inst.slim_id]= []
             for match in match_results:
                 slim_match_inst= SLiMMatch(slim_type_inst.slim_id, match[0], match[0] + len(match[1]) - 1)
+                slim_match_inst.regex= slim_type_inst.regex
+                slim_match_inst.pattern= match[1]
                 self.slim_matches_dict[slim_type_inst.slim_id].append(slim_match_inst)
 
     def read_in_features_scores(self, features_path):
@@ -40,6 +46,24 @@ class Protein(protein_interaction_interfaces.Protein):
             lines= [line.strip() for line in f.readlines()]
             for line in lines[1:]:
                 self.DomainOverlap_scores.append(float(line.split('\t')[2]))
+        try:
+            with open(features_path + '/conservation_scores/' + self.protein_id + '_con.txt', 'r') as f:
+                data= json.load(f)
+                for result in data['Conservation']:
+                    if 'qfo' in result:
+                        for score in result['qfo']:
+                            self.qfo_RLC_scores.append(score)
+                    elif 'vertebrates' in result:
+                        for score in result['vertebrates']:
+                            self.vertebrates_RLC_scores.append(score)
+                    elif 'mammalia' in result:
+                        for score in result['mammalia']:
+                            self.mammalia_RLC_scores.append(score)
+                    elif 'metazoa' in result:
+                        for score in result['metazoa']:
+                            self.metazoa_RLC_scores.append(score)
+        except:
+            print(f'{self.protein_id} does not have a conservation score file.')
         if any(self.IUPredLong_scores):
             print(f'{self.protein_id} IUPred long scores saved.')
         if any(self.IUPredShort_scores):
@@ -48,17 +72,62 @@ class Protein(protein_interaction_interfaces.Protein):
             print(f'{self.protein_id} Anchor scores saved.')
         if any(self.DomainOverlap_scores):
             print(f'{self.protein_id} domain overlap scores saved.')
+        if any(self.qfo_RLC_scores):
+            print(f'{self.protein_id} qfo RLC scores saved.')
+        if any(self.vertebrates_RLC_scores):
+            print(f'{self.protein_id} vertebrates RLC scores saved.')
+        if any(self.mammalia_RLC_scores):
+            print(f'{self.protein_id} mammalia RLC scores saved.')
+        if any(self.metazoa_RLC_scores):
+            print(f'{self.protein_id} metazoa RLC scores saved.')
 
     def calculate_average_features_scores(self): # Dont pre-calculate this for now, only run this function when we want to make a prediction
+        base_url= 'http://slim.icr.ac.uk/restapi/functions/defined_positions?'
         for slim_id, slim_match in self.slim_matches_dict.items():
             for slim_match_inst in slim_match:
                 start= int(slim_match_inst.start)
                 end= int(slim_match_inst.end)
+                pattern= slim_match_inst.pattern
+                regex= slim_match_inst.regex
                 slim_match_inst.IUPredLong= float(sum(self.IUPredLong_scores[start-1:end])/(end - start + 1))
                 slim_match_inst.IUPredShort= float(sum(self.IUPredShort_scores[start-1:end])/(end - start + 1))
                 slim_match_inst.Anchor= float(sum(self.Anchor_scores[start-1:end])/(end - start + 1))
                 slim_match_inst.DomainOverlap= float(sum(self.DomainOverlap_scores[start-1:end])/(end - start + 1))
-                print(f'Average features scores of {slim_id} at {start}-{end} calculated.')
+                print(f'Average IUPred & DomainOverlap scores of {slim_id} at {start}-{end} calculated for {self.protein_id}.')
+                payload= {'motif':regex, 'sequence':pattern}
+                try:
+                    r= requests.get(base_url, params= payload)
+                    if r.status_code== requests.codes.ok:
+                        response= r.json()
+                        defined_positions= [start+i for i in response['indexes']]
+                        for cons_type in [qfo_RLC_scores, vertebrates_RLC_scores, mammalia_RLC_scores, metazoa_RLC_scores]:
+                            if any(cons_type):
+                                defined_positions_cons_scores= []
+                                for i, score in cons_type:
+                                    if i+1 in defined_positions:
+                                        defined_positions_cons_scores.append(score)
+                                pmotif= np.product(defined_positions_cons_scores)
+                                lnpmotif= -np.log(pmotif)
+                                sigmotif= sc.gammaincc(len(defined_positions_cons_scores), lnpmotif)
+                                meanRLCprob= np.mean(defined_positions_cons_scores)
+                                varRLCprob= sum([abs(x-meanRLCprob) for x in defined_positions_cons_scores])/len(defined_positions_cons_scores)
+                                if 'qfo' in cons_type:
+                                    self.qfo_RLC= sigmotif
+                                    self.qfo_RLCvar= varRLCprob
+                                elif 'vertebrates' in cons_type:
+                                    self.vertebrates_RLC= sigmotif
+                                    self.vertebrates_RLCvar= varRLCprob
+                                elif 'mammalia' in cons_type:
+                                    self.mammalia_RLC= sigmotif
+                                    self.mammalia_RLCvar= varRLCprob
+                                elif 'metazoa' in cons_type:
+                                    self.metazoa_RLC= sigmotif
+                                    self.metazoa_RLCvar= varRLCprob
+                    else:
+                        print('Bad response code: Check regex and matched pattern')
+                except:
+                    print('SLiM server not responding')
+
 
 class ProteinPair(protein_interaction_interfaces.ProteinPair):
     def __init__(self, proteinA, proteinB):
@@ -77,10 +146,20 @@ class SLiMMatch:
         self.slim_id= slim_id
         self.start= start
         self.end= end
+        self.regex= None
+        self.pattern= None
         self.IUPredLong= None
         self.IUPredShort= None
         self.Anchor= None
         self.DomainOverlap= None
+        self.qfo_RLC= None
+        self.qfo_RLCvar= None
+        self.vertebrates_RLC= None
+        self.vertebrates_RLCvar= None
+        self.mammalia_RLC= None
+        self.mammalia_RLCvar= None
+        self.metazoa_RLC= None
+        self.metazoa_RLCvar= None
 
 class DomainType(protein_interaction_interfaces.DomainType):
     def __init__(self, domain_id):

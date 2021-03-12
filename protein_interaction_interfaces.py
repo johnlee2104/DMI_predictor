@@ -35,7 +35,7 @@ class DomainInterface:
 class DomainInterfaceMatch:
     def __init__(self, domain_interface, domain_matches):
         self.domain_interface= domain_interface
-        self.domain_matches= domain_matches
+        self.domain_matches= domain_matches # saved as []
 
 class InterfaceHandling:
     def __init__(self):
