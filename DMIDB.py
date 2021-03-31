@@ -18,15 +18,22 @@ class Protein(protein_interaction_interfaces.Protein):
         self.metazoa_RLC_scores= []
 
     def create_slim_matches(self, slim_type_inst):
-        slim_start= [match.start() + 1 for match in re.finditer('(?=(' + slim_type_inst.regex + '))', self.sequence)]
+        slim_start= [match.start() for match in re.finditer('(?=(' + slim_type_inst.regex + '))', self.sequence)]
         match_pattern= [match.group(1) for match in re.finditer('(?=(' + slim_type_inst.regex + '))', self.sequence)]
         match_results= list(zip(slim_start, match_pattern))
         if len(match_results) >0:
             self.slim_matches_dict[slim_type_inst.slim_id]= []
             for match in match_results:
-                slim_match_inst= SLiMMatch(slim_type_inst.slim_id, match[0], match[0] + len(match[1]) - 1)
-                slim_match_inst.regex= slim_type_inst.regex
-                slim_match_inst.pattern= match[1]
+                slim_match_inst= SLiMMatch(slim_type_inst.slim_id, match[0] + 1, match[0] + len(match[1]))
+                if match[0] == 0:
+                    pattern= self.sequence[match[0]:match[0] + len(match[1]) + 1]
+                    slim_match_inst.pattern= '-' + pattern[:-1] + str.lower(pattern[-1])
+                elif match[0] + len(match[1]) == len(self.sequence):
+                    pattern= self.sequence[match[0] - 1:match[0] + len(match[1])]
+                    slim_match_inst.pattern= str.lower(pattern[0]) + pattern[1:]
+                else:
+                    pattern= self.sequence[match[0] - 1:match[0] + len(match[1]) + 1]
+                    slim_match_inst.pattern= str.lower(pattern[0]) + pattern[1:-1] + str.lower(pattern[-1])
                 self.slim_matches_dict[slim_type_inst.slim_id].append(slim_match_inst)
 
     def read_in_features_scores(self, features_path):
@@ -47,7 +54,7 @@ class Protein(protein_interaction_interfaces.Protein):
             for line in lines[1:]:
                 self.DomainOverlap_scores.append(float(line.split('\t')[2]))
         try:
-            with open(features_path + '/conservation_scores/' + self.protein_id + '_con.txt', 'r') as f:
+            with open(features_path + '/conservation_scores/' + self.protein_id + '_con.json', 'r') as f:
                 data= json.load(f)
                 for result in data['Conservation']:
                     if 'qfo' in result:
@@ -81,14 +88,14 @@ class Protein(protein_interaction_interfaces.Protein):
         if any(self.metazoa_RLC_scores):
             print(f'{self.protein_id} metazoa RLC scores saved.')
 
-    def calculate_average_features_scores(self): # Dont pre-calculate this for now, only run this function when we want to make a prediction
+    def calculate_average_features_scores(self, slim_type_inst): # Dont pre-calculate this for now, only run this function when we want to make a prediction
         base_url= 'http://slim.icr.ac.uk/restapi/functions/defined_positions?'
         for slim_id, slim_match in self.slim_matches_dict.items():
             for slim_match_inst in slim_match:
                 start= int(slim_match_inst.start)
                 end= int(slim_match_inst.end)
                 pattern= slim_match_inst.pattern
-                regex= slim_match_inst.regex
+                regex= slim_type_inst.regex
                 slim_match_inst.IUPredLong= float(sum(self.IUPredLong_scores[start-1:end])/(end - start + 1))
                 slim_match_inst.IUPredShort= float(sum(self.IUPredShort_scores[start-1:end])/(end - start + 1))
                 slim_match_inst.Anchor= float(sum(self.Anchor_scores[start-1:end])/(end - start + 1))
@@ -96,15 +103,15 @@ class Protein(protein_interaction_interfaces.Protein):
                 print(f'Average IUPred & DomainOverlap scores of {slim_id} at {start}-{end} calculated for {self.protein_id}.')
                 payload= {'motif':regex, 'sequence':pattern}
                 try:
-                    r= requests.get(base_url, params= payload)
+                    r= requests.get(base_url, params= payload, time= 61)
                     if r.status_code== requests.codes.ok:
                         response= r.json()
-                        defined_positions= [start+i for i in response['indexes']]
+                        defined_positions= [start + (ind - 1) for ind in response['indexes']]
                         for cons_type in [qfo_RLC_scores, vertebrates_RLC_scores, mammalia_RLC_scores, metazoa_RLC_scores]:
                             if any(cons_type):
                                 defined_positions_cons_scores= []
                                 for i, score in cons_type:
-                                    if i+1 in defined_positions:
+                                    if i + 1 in defined_positions: # pos starting from 0
                                         defined_positions_cons_scores.append(score)
                                 pmotif= np.product(defined_positions_cons_scores)
                                 lnpmotif= -np.log(pmotif)
@@ -146,7 +153,6 @@ class SLiMMatch:
         self.slim_id= slim_id
         self.start= start
         self.end= end
-        self.regex= None
         self.pattern= None
         self.IUPredLong= None
         self.IUPredShort= None
@@ -337,8 +343,9 @@ class InterfaceHandling(protein_interaction_interfaces.InterfaceHandling):
 
     def calculate_average_features_scores_all_proteins(self): # Dont pre-calculate this for now, only run this function when we want to make a prediction
         for prot_id, prot_inst in self.proteins_dict.items():
-            prot_inst.calculate_average_features_scores()
-        print('Averages of all SLiM features calculated for all proteins.')
+            for slim_id, slim_type_inst in self.SLiM_types_dict.items():
+                prot_inst.calculate_average_features_scores()
+            print('Averages of all SLiM features calculated for all proteins.')
 
     def find_DMI_matches(self):
         for protpair, protpair_inst in self.protein_pairs_dict.items():

@@ -9,6 +9,7 @@ class RRSv1Formation(RRSFormation.RRSFormation):
         super().__init__(RRS_version)
 
     def make_random_protein_pairs(self): # Should I add an arg to specify how many RPP to make?
+
         pairs_set= set()
 
         for p in itertools.combinations(InterfaceHandling.proteins_dict.keys(), 2):
@@ -19,6 +20,7 @@ class RRSv1Formation(RRSFormation.RRSFormation):
                 InterfaceHandling.protein_pairs_dict[protein_pair] = DMIDB.ProteinPair(protein_pair[0], protein_pair[1])
 
     def select_RRS_instances(self, number_instances):
+        number_instances= int(number_instances)
         for slim_id in InterfaceHandling.DMI_types_dict.keys():
             dmi_matches= []
             for protpair, protpair_inst in InterfaceHandling.protein_pairs_dict.items():
@@ -64,10 +66,12 @@ if __name__ == '__main__':
     smart_domain_matches_json_file= sys.argv[7]
     pfam_domain_matches_json_file= sys.argv[8]
     features_path= sys.argv[9]
+    RRS_version= sys.argv[10]
+    number_instances= sys.argv[11]
 
     InterfaceHandling= DMIDB.InterfaceHandling(slim_type_file, dmi_type_file, smart_domain_types_file, pfam_domain_types_file, smart_domain_matches_json_file, pfam_domain_matches_json_file, features_path)
     # DMI_DB= DMIDB.InterfaceHandling(slim_type_file, dmi_type_file, smart_domain_types_file, pfam_domain_types_file, smart_domain_matches_json_file, pfam_domain_matches_json_file, features_path)
-    RRS_v1= RRSv1Formation('RRSv1')
+    RRS_v1= RRSv1Formation(RRS_version)
     InterfaceHandling.read_in_proteins(prot_path, canonical= True)
     InterfaceHandling.read_in_known_PPIs(PPI_file)
     RRS_v1.make_random_protein_pairs()
@@ -79,7 +83,7 @@ if __name__ == '__main__':
     # InterfaceHandling.read_in_features_scores_all_proteins()
     # InterfaceHandling.calculate_average_features_scores_all_proteins()
     InterfaceHandling.find_DMI_matches()
-    RRS_v1.select_RRS_instances(20)
+    RRS_v1.select_RRS_instances(number_instances)
     RRS_v1.write_out_RRS_instances(InterfaceHandling)
 
-    # python3 RRSv1Formation.py ~/Coding/Python/DMI/protein_sequences_and_features/PRS_v3_RRS_v1_sequences PRS_IntAct_union_known_PPIs.txt ../elm_classes_20210222.tsv ../elm_interaction_domains_complete_20210222.tsv ../domain_stuffs/all_smart_domains_with_frequency.txt ../domain_stuffs/all_pfam_domains_with_frequency.txt ../domain_stuffs/interpro_9606_smart_matches_20210122.json ../domain_stuffs/interpro_9606_pfam_matches_20210122.json ../protein_sequences_and_features/PRS_v3_RRS_v1_sequences_features
+    # python3 RRSv1Formation.py ~/Coding/Python/DMI/protein_sequences_and_features/PRS_v3_RRS_v1_sequences PRS_IntAct_union_known_PPIs.txt ../elm_classes_20210222.tsv ../elm_interaction_domains_complete_20210222.tsv ../domain_stuffs/all_smart_domains_with_frequency.txt ../domain_stuffs/all_pfam_domains_with_frequency.txt ../domain_stuffs/interpro_9606_smart_matches_20210122.json ../domain_stuffs/interpro_9606_pfam_matches_20210122.json ../protein_sequences_and_features/PRS_v3_RRS_v1_sequences_features RRSv1_1 5

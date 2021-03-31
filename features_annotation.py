@@ -24,25 +24,31 @@ def annotate_slim_domain_features_on_dataset(slim_features_dir_name, domain_feat
                 domain_freq_dict[tabs[1]].append(tabs[3])
                 domain_freq_dict[tabs[1]].append(tabs[4])
     df= pd.read_csv(input_file_tsv, sep= '\t', index_col= 0)
-    df['IUPredLong']= float('NaN')
-    df['IUPredShort']= float('NaN')
-    df['Anchor']= float('NaN')
-    df['DomainOverlap']= float('NaN')
-    df['qfo_RLC']= float('NaN')
-    df['qfo_RLCvar']= float('NaN')
-    df['vertebrates_RLC']= float('NaN')
-    df['vertebrates_RLCvar']= float('NaN')
-    df['mammalia_RLC']= float('NaN')
-    df['mammalia_RLCvar']= float('NaN')
-    df['metazoa_RLC']= float('NaN')
-    df['metazoa_RLCvar']= float('NaN')
-    df['DomainFreqbyProtein1']= float('NaN')
-    df['DomainFreqinProteome1']= float('NaN')
-    df['DomainFreqbyProtein2']= float('NaN')
-    df['DomainFreqinProteome2']= float('NaN')
+    new_cols= ['IUPredLong', 'IUPredShort', 'Anchor', 'DomainOverlap','qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainFreqbyProtein1', 'DomainFreqbyProtein2', 'DomainFreqinProteome1', 'DomainFreqinProteome2']
+    for col in new_cols:
+        if col not in df.columns:
+            df[col]= float('NaN')
+    # df['IUPredLong']= float('NaN')
+    # df['IUPredShort']= float('NaN')
+    # df['Anchor']= float('NaN')
+    # df['DomainOverlap']= float('NaN')
+    # df['qfo_RLC']= float('NaN')
+    # df['qfo_RLCvar']= float('NaN')
+    # df['vertebrates_RLC']= float('NaN')
+    # df['vertebrates_RLCvar']= float('NaN')
+    # df['mammalia_RLC']= float('NaN')
+    # df['mammalia_RLCvar']= float('NaN')
+    # df['metazoa_RLC']= float('NaN')
+    # df['metazoa_RLCvar']= float('NaN')
+    # df['DomainFreqbyProtein1']= float('NaN')
+    # df['DomainFreqinProteome1']= float('NaN')
+    # df['DomainFreqbyProtein2']= float('NaN')
+    # df['DomainFreqinProteome2']= float('NaN')
     if 'DMISource' not in df.columns:
         df['DMISource']= float('NaN')
     for ind, row in df.iterrows():
+        if row['qfo_RLC'] != 'Server still not responding after 61 secs timeout':
+            continue
         protein_id= row['interactorElm']
         regex= row['Regex']
         pattern= row['Pattern']
@@ -78,14 +84,14 @@ def annotate_slim_domain_features_on_dataset(slim_features_dir_name, domain_feat
             lines= [line.strip() for line in f.readlines()]
             for line in lines[1:]:
                 DomainOverlap_score.append(float(line.split('\t')[2]))
-        if protein_id + '_con.txt' in os.listdir(cons_score_path + '/'):
+        if protein_id + '_con.json' in os.listdir(cons_score_path + '/'):
             try:
-                r= requests.get(base_url, params= payload, timeout= 5)
+                r= requests.get(base_url, params= payload, timeout= 61)
                 if r.status_code== requests.codes.ok:
                     response= r.json()
-                    defined_positions= [start+i for i in response['indexes']]
-                with open(cons_score_path + '/' + protein_id + '_con.txt', 'r') as f:
-                    data= json.load(f)
+                    defined_positions= [start + (ind - 1) for ind in response['indexes']]
+                with open(cons_score_path + '/' + protein_id + '_con.json', 'r') as f:
+                    data= json.load(f) # pos annotated starting from 1
                     for result in data['Conservation']:
                         for cons_type in result:
                             defined_positions_cons_scores= []
@@ -105,7 +111,7 @@ def annotate_slim_domain_features_on_dataset(slim_features_dir_name, domain_feat
                                 df.loc[ind, [cons_type + '_RLC']]= 'Problem with regex/motif'
                                 df.loc[ind, [cons_type + '_RLCvar']]= 'Problem with regex/motif'
             except:
-                df.loc[ind, 'qfo_RLC']= 'Server still not responding after 5 secs timeout'
+                df.loc[ind, 'qfo_RLC']= 'Server still not responding after 61 secs timeout'
         else:
             df.loc[ind, 'qfo_RLC']= 'No conservation score found'
         df.loc[ind, ['IUPredLong']]= format(sum(IUPredLong_score[start-1:end])/(end-start+1), '.4f')
@@ -132,4 +138,4 @@ if __name__== '__main__':
     input_file_tsv= sys.argv[4]
     annotate_slim_domain_features_on_dataset(slim_features_dir_name, domain_features_dir_name, cons_score_path, input_file_tsv)
 
-    # python3 features_annotation.py ../protein_sequences_and_features/PRS_v3_RRS_v1_sequences_features ../domain_stuffs ../protein_sequences_and_features/human_protein_sequences_features/conservation_scores RRSv1_20210312.tsv
+    # python3 features_annotation.py ../protein_sequences_and_features/PRS_v3_RRS_v1_sequences_features ../domain_stuffs ../protein_sequences_and_features/human_protein_sequences_features/conservation_scores RRSv1_20210315.tsv

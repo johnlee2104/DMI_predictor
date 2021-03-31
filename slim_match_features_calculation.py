@@ -42,9 +42,15 @@ def calculate_domain_overlap_score(in_path, out_path):
             for result in data['results']:
                 if result['metadata']['accession']== protein_id:
                     for domain_match_id in result['entry_subset']:
-                        for domain_match in domain_match_id['entry_protein_locations']:
-                            for fragment in domain_match['fragments']:
-                                domain_overlap_scores[int(fragment['start'])-1:int(fragment['end'])]= 1
+                        if domain_match_id['accession'] in motif_disordered_hmms:
+                            if motif_disordered_hmms[domain_match_id['accession']] != 'Motif':
+                                for domain_match in domain_match_id['entry_protein_locations']:
+                                    for fragment in domain_match['fragments']:
+                                        domain_overlap_scores[fragment['start']-1:fragment['end']]= 1
+                        else:
+                            for domain_match in domain_match_id['entry_protein_locations']:
+                                for fragment in domain_match['fragments']:
+                                    domain_overlap_scores[fragment['start']-1:fragment['end']]= 1
         if protein_id in isoform_domain_matches:
             for domain_match in isoform_domain_matches[protein_id]:
                 domain_overlap_scores[int(domain_match[1])-1:int(domain_match[2])]= 1
@@ -66,6 +72,10 @@ if __name__ == '__main__':
     with open('/Users/chopyanlee/Coding/Python/DMI/domain_stuffs/interpro_9606_pfam_matches_20210122.json', 'r') as f:
         pfam_domain_matches= json.load(f)
     print('pfam_json loaded')
+    with open('/Users/chopyanlee/Coding/Python/DMI/domain_stuffs/motif_disordered_smart_pfam_hmms.txt', 'r') as f:
+        motif_disordered_hmms= json.load(f)
+        print(motif_disordered_hmms)
+    print('motif_disordered_hmms loaded')
     with open('/Users/chopyanlee/Coding/Python/DMI/domain_stuffs/smart_domain_matches_for_alt_isoforms.txt', 'r') as f:
         lines= [line.strip() for line in f.readlines()]
     print('isoform_matches loaded')
@@ -93,5 +103,5 @@ if __name__ == '__main__':
     for line in lines:
         if line[:2] != '--':
             tab= line.split('=')
-    calculate_iupred_scores(in_path, out_path)
+    # calculate_iupred_scores(in_path, out_path)
     calculate_domain_overlap_score(in_path, out_path)
