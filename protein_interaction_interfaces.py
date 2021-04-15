@@ -38,17 +38,18 @@ class DomainInterfaceMatch:
         self.domain_matches= domain_matches # saved as []
 
 class InterfaceHandling:
-    def __init__(self):
+    def __init__(self, prot_path):
         self.proteins_dict= {}
         self.domain_types_dict= {}
         self.known_PPIs= []
         self.protein_pairs_dict= {}
+        self.prot_path= prot_path
 
-    def read_in_proteins(self, prot_path, canonical= True):
-        if canonical== False:
-            file_names= [file_name for file_name in glob.glob(prot_path + '/*')]
-        else:
-            file_names= [file_name for file_name in glob.glob(prot_path + '/*') if '-' not in file_name]
+    def read_in_proteins(self, only_canonical= True):
+        if only_canonical == False:
+            file_names= [file_name for file_name in glob.glob(self.prot_path + '/*')]
+        else: # only_canonical == True
+            file_names= [file_name for file_name in glob.glob(self.prot_path + '/*') if '-' not in file_name]
         for file_name in file_names:
             with open(file_name,'r') as file:
                 lines = [line.strip() for line in file.readlines()]

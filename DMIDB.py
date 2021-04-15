@@ -1,8 +1,10 @@
 from protein_interaction_interfaces import *
 import protein_interaction_interfaces
-import re, json, requests
+import re, json, requests, sys
 import scipy.special as sc
 import numpy as np
+
+dummy_value= 88888
 
 class Protein(protein_interaction_interfaces.Protein):
     def __init__(self, protein_id):
@@ -12,10 +14,12 @@ class Protein(protein_interaction_interfaces.Protein):
         self.IUPredShort_scores= []
         self.Anchor_scores= []
         self.DomainOverlap_scores= []
-        self.qfo_RLC_scores= []
-        self.vertebrates_RLC_scores= []
-        self.mammalia_RLC_scores= []
-        self.metazoa_RLC_scores= []
+        self.qfo_RLC_scores= {} # follows the cons score format from ND, {'pos1':'score1', 'pos2':'score2'}
+        self.vertebrates_RLC_scores= {}
+        self.mammalia_RLC_scores= {}
+        self.metazoa_RLC_scores= {}
+        self.networks= {} # saved as {0:['P123','P321'],1:['P111','P222'],2:['P333','P444']} with 0 being real network and 1-1000 being random network
+        self.network_degree= None
 
     def create_slim_matches(self, slim_type_inst):
         slim_start= [match.start() for match in re.finditer('(?=(' + slim_type_inst.regex + '))', self.sequence)]
@@ -24,19 +28,20 @@ class Protein(protein_interaction_interfaces.Protein):
         if len(match_results) >0:
             self.slim_matches_dict[slim_type_inst.slim_id]= []
             for match in match_results:
-                slim_match_inst= SLiMMatch(slim_type_inst.slim_id, match[0] + 1, match[0] + len(match[1]))
                 if match[0] == 0:
                     pattern= self.sequence[match[0]:match[0] + len(match[1]) + 1]
-                    slim_match_inst.pattern= '-' + pattern[:-1] + str.lower(pattern[-1])
+                    modified_pattern= '-' + pattern[:-1] + str.lower(pattern[-1])
                 elif match[0] + len(match[1]) == len(self.sequence):
                     pattern= self.sequence[match[0] - 1:match[0] + len(match[1])]
-                    slim_match_inst.pattern= str.lower(pattern[0]) + pattern[1:]
+                    modified_pattern= str.lower(pattern[0]) + pattern[1:]
                 else:
                     pattern= self.sequence[match[0] - 1:match[0] + len(match[1]) + 1]
-                    slim_match_inst.pattern= str.lower(pattern[0]) + pattern[1:-1] + str.lower(pattern[-1])
+                    modified_pattern= str.lower(pattern[0]) + pattern[1:-1] + str.lower(pattern[-1])
+                slim_match_inst= SLiMMatch(slim_type_inst.slim_id, match[0] + 1, match[0] + len(match[1]), modified_pattern)
+                # pattern is saved with flanking residues while start and end is saved as realy aa number, i.e. starting from 1
                 self.slim_matches_dict[slim_type_inst.slim_id].append(slim_match_inst)
 
-    def read_in_features_scores(self, features_path):
+    def read_in_features(self, features_path):
         with open(features_path + '/IUPred_long/' + self.protein_id + '_iupredlong.txt', 'r') as f:
             lines= [line.strip() for line in f.readlines()]
             for line in lines[1:]:
@@ -56,29 +61,35 @@ class Protein(protein_interaction_interfaces.Protein):
         try:
             with open(features_path + '/conservation_scores/' + self.protein_id + '_con.json', 'r') as f:
                 data= json.load(f)
-                for result in data['Conservation']:
-                    if 'qfo' in result:
-                        for score in result['qfo']:
-                            self.qfo_RLC_scores.append(score)
-                    elif 'vertebrates' in result:
-                        for score in result['vertebrates']:
-                            self.vertebrates_RLC_scores.append(score)
-                    elif 'mammalia' in result:
-                        for score in result['mammalia']:
-                            self.mammalia_RLC_scores.append(score)
-                    elif 'metazoa' in result:
-                        for score in result['metazoa']:
-                            self.metazoa_RLC_scores.append(score)
+            for result in data['Conservation']:
+                if 'qfo' in result:
+                    self.qfo_RLC_scores= result['qfo']
+                elif 'vertebrates' in result:
+                    self.vertebrates_RLC_scores= result['vertebrates']
+                elif 'mammalia' in result:
+                    self.mammalia_RLC_scores= result['mammalia']
+                elif 'metazoa' in result:
+                    self.metazoa_RLC_scores= result['metazoa']
         except:
             print(f'{self.protein_id} does not have a conservation score file.')
+        try:
+            with open(features_path + '/Protein_networks/' + self.protein_id + '_real_rand_networks.txt', 'r') as f:
+                lines= [line.strip() for line in f.readlines()]
+            for line in lines[1:]:
+                tabs= line.split('\t')
+                self.networks[tabs[0]]= []
+                if '|' in tabs[1]:
+                    partners= tabs[1].split('|')
+                    for partner in partners:
+                        self.networks[tabs[0]].append(partner)
+                    self.network_degree= len(self.networks[tabs[0]])
+                else:
+                    self.networks[tabs[0]].append(tabs[1])
+                    self.network_degree= len(self.networks[tabs[0]])
+        except:
+            print(f'{self.protein_id} does not have a network file.')
         if any(self.IUPredLong_scores):
             print(f'{self.protein_id} IUPred long scores saved.')
-        if any(self.IUPredShort_scores):
-            print(f'{self.protein_id} IUPred short scores saved.')
-        if any(self.Anchor_scores):
-            print(f'{self.protein_id} Anchor scores saved.')
-        if any(self.DomainOverlap_scores):
-            print(f'{self.protein_id} domain overlap scores saved.')
         if any(self.qfo_RLC_scores):
             print(f'{self.protein_id} qfo RLC scores saved.')
         if any(self.vertebrates_RLC_scores):
@@ -87,15 +98,17 @@ class Protein(protein_interaction_interfaces.Protein):
             print(f'{self.protein_id} mammalia RLC scores saved.')
         if any(self.metazoa_RLC_scores):
             print(f'{self.protein_id} metazoa RLC scores saved.')
+        if any(self.networks):
+            print(f'{self.protein_id} real and random networks saved')
 
-    def calculate_average_features_scores(self, slim_type_inst): # Dont pre-calculate this for now, only run this function when we want to make a prediction
-        base_url= 'http://slim.icr.ac.uk/restapi/functions/defined_positions?'
+    def calculate_features_scores(self, InterfaceHandling):
+        defined_positions_url= 'http://slim.icr.ac.uk/restapi/functions/defined_positions?'
         for slim_id, slim_match in self.slim_matches_dict.items():
             for slim_match_inst in slim_match:
                 start= int(slim_match_inst.start)
                 end= int(slim_match_inst.end)
                 pattern= slim_match_inst.pattern
-                regex= slim_type_inst.regex
+                regex= InterfaceHandling.SLiM_types_dict[slim_id].regex
                 slim_match_inst.IUPredLong= float(sum(self.IUPredLong_scores[start-1:end])/(end - start + 1))
                 slim_match_inst.IUPredShort= float(sum(self.IUPredShort_scores[start-1:end])/(end - start + 1))
                 slim_match_inst.Anchor= float(sum(self.Anchor_scores[start-1:end])/(end - start + 1))
@@ -103,38 +116,99 @@ class Protein(protein_interaction_interfaces.Protein):
                 print(f'Average IUPred & DomainOverlap scores of {slim_id} at {start}-{end} calculated for {self.protein_id}.')
                 payload= {'motif':regex, 'sequence':pattern}
                 try:
-                    r= requests.get(base_url, params= payload, time= 61)
+                    timeout= 61
+                    r= requests.get(defined_positions_url, params= payload, timeout= timeout)
                     if r.status_code== requests.codes.ok:
                         response= r.json()
                         defined_positions= [start + (ind - 1) for ind in response['indexes']]
-                        for cons_type in [qfo_RLC_scores, vertebrates_RLC_scores, mammalia_RLC_scores, metazoa_RLC_scores]:
+                        for cons_type in [self.qfo_RLC_scores, self.vertebrates_RLC_scores, self.mammalia_RLC_scores, self.metazoa_RLC_scores]:
                             if any(cons_type):
                                 defined_positions_cons_scores= []
-                                for i, score in cons_type:
-                                    if i + 1 in defined_positions: # pos starting from 0
+                                for pos, score in cons_type.items():
+                                    if int(pos) in defined_positions:
                                         defined_positions_cons_scores.append(score)
-                                pmotif= np.product(defined_positions_cons_scores)
-                                lnpmotif= -np.log(pmotif)
-                                sigmotif= sc.gammaincc(len(defined_positions_cons_scores), lnpmotif)
-                                meanRLCprob= np.mean(defined_positions_cons_scores)
-                                varRLCprob= sum([abs(x-meanRLCprob) for x in defined_positions_cons_scores])/len(defined_positions_cons_scores)
-                                if 'qfo' in cons_type:
-                                    self.qfo_RLC= sigmotif
-                                    self.qfo_RLCvar= varRLCprob
-                                elif 'vertebrates' in cons_type:
-                                    self.vertebrates_RLC= sigmotif
-                                    self.vertebrates_RLCvar= varRLCprob
-                                elif 'mammalia' in cons_type:
-                                    self.mammalia_RLC= sigmotif
-                                    self.mammalia_RLCvar= varRLCprob
-                                elif 'metazoa' in cons_type:
-                                    self.metazoa_RLC= sigmotif
-                                    self.metazoa_RLCvar= varRLCprob
+                                if any(defined_positions_cons_scores):
+                                    pmotif= np.product(defined_positions_cons_scores)
+                                    lnpmotif= -np.log(pmotif)
+                                    sigmotif= sc.gammaincc(len(defined_positions_cons_scores), lnpmotif)
+                                    meanRLCprob= np.mean(defined_positions_cons_scores)
+                                    varRLCprob= sum([abs(x-meanRLCprob) for x in defined_positions_cons_scores])/len(defined_positions_cons_scores)
+                                    if cons_type == self.qfo_RLC_scores:
+                                        slim_match_inst.qfo_RLC= sigmotif
+                                        slim_match_inst.qfo_RLCvar= varRLCprob
+                                    elif cons_type == self.vertebrates_RLC_scores:
+                                        slim_match_inst.vertebrates_RLC= sigmotif
+                                        slim_match_inst.vertebrates_RLCvar= varRLCprob
+                                    elif cons_type == self.mammalia_RLC_scores:
+                                        slim_match_inst.mammalia_RLC= sigmotif
+                                        slim_match_inst.mammalia_RLCvar= varRLCprob
+                                    elif cons_type == self.metazoa_RLC_scores:
+                                        slim_match_inst.metazoa_RLC= sigmotif
+                                        slim_match_inst.metazoa_RLCvar= varRLCprob
+                                else:
+                                    slim_match_inst.qfo_RLC= 'Problem with regex or motif'
+                                    slim_match_inst.qfo_RLCvar= 'Problem with regex or motif'
+                                    slim_match_inst.vertebrates_RLC= 'Problem with regex or motif'
+                                    slim_match_inst.vertebrates_RLCvar= 'Problem with regex or motif'
+                                    slim_match_inst.mammalia_RLC= 'Problem with regex or motif'
+                                    slim_match_inst.mammalia_RLCvar= 'Problem with regex or motif'
+                                    slim_match_inst.metazoa_RLC= 'Problem with regex or motif'
+                                    slim_match_inst.metazoa_RLCvar= 'Problem with regex or motif'
                     else:
                         print('Bad response code: Check regex and matched pattern')
+                        slim_match_inst.qfo_RLC= 'Problem with regex or motif'
+                        slim_match_inst.qfo_RLCvar= 'Problem with regex or motif'
+                        slim_match_inst.vertebrates_RLC= 'Problem with regex or motif'
+                        slim_match_inst.vertebrates_RLCvar= 'Problem with regex or motif'
+                        slim_match_inst.mammalia_RLC= 'Problem with regex or motif'
+                        slim_match_inst.mammalia_RLCvar= 'Problem with regex or motif'
+                        slim_match_inst.metazoa_RLC= 'Problem with regex or motif'
+                        slim_match_inst.metazoa_RLCvar= 'Problem with regex or motif'
                 except:
                     print('SLiM server not responding')
-
+                    slim_match_inst.qfo_RLC= f'SLiM server not responding after {timeout} time-out.'
+                    slim_match_inst.qfo_RLCvar= f'SLiM server not responding after {timeout} time-out.'
+                    slim_match_inst.vertebrates_RLC= f'SLiM server not responding after {timeout} time-out.'
+                    slim_match_inst.vertebrates_RLCvar= f'SLiM server not responding after {timeout} time-out.'
+                    slim_match_inst.mammalia_RLC= f'SLiM server not responding after {timeout} time-out.'
+                    slim_match_inst.mammalia_RLCvar= f'SLiM server not responding after {timeout} time-out.'
+                    slim_match_inst.metazoa_RLC= f'SLiM server not responding after {timeout} time-out.'
+                    slim_match_inst.metazoa_RLCvar= f'SLiM server not responding after {timeout} time-out.'
+                if any(self.networks):
+                    num_rand_networks= len(self.networks) - 1 # The first network is the real network
+                    cognate_domains = InterfaceHandling.DMI_types_dict[slim_id].domain_interfaces
+                    vertices_with_overlapping_domains= {} # saved as {network_id:protein_count_with_overlapping_domain}
+                    if len(cognate_domains) == 1: # Cases of 1 domain or 2 domains in one protein
+                        domains= set(InterfaceHandling.DMI_types_dict[slim_id].domain_interfaces[0].domain_dict.keys())
+                        for network_id, network in self.networks.items():
+                            count= 0
+                            for partner in network:
+                                partner_domains= set(InterfaceHandling.proteins_dict[partner].domain_matches_dict.keys())
+                                if domains.intersection(partner_domains) == domains: # strict filtering because the partner MUST have the same domain interface i.e. 1 domain or 2 domains in one protein
+                                    count += 1
+                            vertices_with_overlapping_domains[int(network_id)]= count
+                    else: # cases of len(cognate_domains) == 2 -> 2 domains in 2 proteins
+                        domains= set()
+                        for domain_intf_obj in cognate_domains:
+                            for domain_id in domain_intf_obj.domain_dict.keys():
+                                domains.add(domain_id)
+                        for network_id, network in self.networks.items():
+                            count= 0
+                            for partner in network:
+                                partner_domains= set(InterfaceHandling.proteins_dict[partner].domain_matches_dict.keys())
+                                if any(domains.intersection(partner_domains)): # loose filtering because the partner only needs to have at least oen of the domain interface
+                                    count += 1
+                            vertices_with_overlapping_domains[int(network_id)]= count
+                    count_in_real_network= vertices_with_overlapping_domains[0] # no. of vertices with domain in real network
+                    slim_match_inst.vertex_with_domain_in_real_network= count_in_real_network
+                    num_network_more_equal_real= len([v for v in list(vertices_with_overlapping_domains.values())[1:] if v >= count_in_real_network])
+                    rand_network_mean= np.mean(list(vertices_with_overlapping_domains.values())[1:])
+                    rand_network_std= np.std(list(vertices_with_overlapping_domains.values())[1:])
+                    slim_match_inst.DomainEnrichment_pvalue= num_network_more_equal_real/num_rand_networks
+                    if rand_network_std == 0:
+                        slim_match_inst.DomainEnrichment_zscore= dummy_value
+                    else:
+                        slim_match_inst.DomainEnrichment_zscore= (count_in_real_network - rand_network_mean) / rand_network_std
 
 class ProteinPair(protein_interaction_interfaces.ProteinPair):
     def __init__(self, proteinA, proteinB):
@@ -149,11 +223,11 @@ class SLiMType:
         self.probability= ''
 
 class SLiMMatch:
-    def __init__(self, slim_id, start, end):
+    def __init__(self, slim_id, start, end, pattern): # start and end numbered starting from 1
         self.slim_id= slim_id
         self.start= start
         self.end= end
-        self.pattern= None
+        self.pattern= pattern
         self.IUPredLong= None
         self.IUPredShort= None
         self.Anchor= None
@@ -166,6 +240,9 @@ class SLiMMatch:
         self.mammalia_RLCvar= None
         self.metazoa_RLC= None
         self.metazoa_RLCvar= None
+        self.DomainEnrichment_pvalue= None
+        self.DomainEnrichment_zscore= None
+        self.vertex_with_domain_in_real_network= None
 
 class DomainType(protein_interaction_interfaces.DomainType):
     def __init__(self, domain_id):
@@ -192,8 +269,8 @@ class DMIMatch:
 
 ### Rework this part
 class InterfaceHandling(protein_interaction_interfaces.InterfaceHandling):
-    def __init__(self, slim_type_file, dmi_type_file, smart_domain_types_file, pfam_domain_types_file, smart_domain_matches_json_file, pfam_domain_matches_json_file, features_path):
-        super().__init__()
+    def __init__(self, prot_path, slim_type_file, dmi_type_file, smart_domain_types_file, pfam_domain_types_file, smart_domain_matches_json_file, pfam_domain_matches_json_file, features_path):
+        super().__init__(prot_path)
         self.SLiM_types_dict= {}
         self.DMI_types_dict= {}
         self.slim_type_file= slim_type_file
@@ -204,11 +281,11 @@ class InterfaceHandling(protein_interaction_interfaces.InterfaceHandling):
         self.pfam_domain_matches_json_file= pfam_domain_matches_json_file
         self.features_path= features_path
 
-    def read_in_proteins(self, prot_path, canonical= True):
-        if canonical== False:
-            file_names= [file_name for file_name in glob.glob(prot_path + '/*')]
-        else:
-            file_names= [file_name for file_name in glob.glob(prot_path + '/*') if '-' not in file_name]
+    def read_in_proteins(self, only_canonical= True):
+        if only_canonical == False:
+            file_names= [file_name for file_name in glob.glob(self.prot_path + '/*')]
+        else: # only_canonical == True
+            file_names= [file_name for file_name in glob.glob(self.prot_path + '/*') if '-' not in file_name]
         for file_name in file_names:
             with open(file_name,'r') as file:
                 lines = [line.strip() for line in file.readlines()]
@@ -244,7 +321,7 @@ class InterfaceHandling(protein_interaction_interfaces.InterfaceHandling):
             slim_type_inst.regex= tab[4] #.replace('"', '')
             slim_type_inst.probability= str(tab[5])
             self.SLiM_types_dict[slim_id] = slim_type_inst
-        print(f'{len(self.SLiM_types_dict)} read in.')
+        print(f'{len(self.SLiM_types_dict)} SLiM types read in.')
 
     def read_in_DMI_types(self):
         with open(self.dmi_type_file, 'r') as file:
@@ -279,7 +356,7 @@ class InterfaceHandling(protein_interaction_interfaces.InterfaceHandling):
                     self.domain_types_dict[domain_id2].dmi_types.append(self.DMI_types_dict[slim_id])
                 elif (len(tab) > 7) & (tab[11] == '0'):
                     continue
-        print(f'{len(self.DMI_types_dict)} read in.')
+        print(f'{len(self.DMI_types_dict)} DMI types read in.')
 
     def read_in_domain_types(self): # this one reads in only domains involved in DMI
         for domain_types_file in list([self.smart_domain_types_file, self.pfam_domain_types_file]):
