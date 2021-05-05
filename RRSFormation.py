@@ -24,7 +24,7 @@ class RRSFormation:
         file.write('\t'.join((' ', 'Accession', 'Elm', 'Regex', 'Pattern', 'Probability', 'interactorElm', 'ElmMatch', 'interactorDomain', 'DomainID1', 'DomainMatch1', 'DomainMatchEvalue1', 'DomainID2', 'DomainMatch2', 'DomainMatchEvalue2')))
         file.write('\n')
         for i , inst in enumerate(self.RRS_instances):
-            file.write('\t'.join((str(i+1), inst.slim_match.slim_id, InterfaceHandling.SLiM_types_dict[inst.slim_match.slim_id].name, InterfaceHandling.SLiM_types_dict[inst.slim_match.slim_id].regex, inst.slim_match.pattern, InterfaceHandling.SLiM_types_dict[inst.slim_match.slim_id].probability, inst.slim_protein, '-'.join([str(inst.slim_match.start) , str(inst.slim_match.end)]), inst.domain_protein)))
+            file.write('\t'.join((str(i+1), inst.slim_match.slim_type_inst.slim_id, inst.slim_match.slim_type_inst.name, inst.slim_match.slim_type_inst.regex, inst.slim_match.pattern, inst.slim_match.slim_type_inst.probability, inst.slim_protein, '-'.join([str(inst.slim_match.start) , str(inst.slim_match.end)]), inst.domain_protein)))
             for domain_match_list in inst.domain_interface_match.domain_matches:
                 domain_id= domain_match_list[0].domain_id
                 start= [domain_match.start for domain_match in domain_match_list]

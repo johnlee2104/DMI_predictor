@@ -38,10 +38,12 @@ class DomainInterfaceMatch:
         self.domain_matches= domain_matches # saved as []
 
 class InterfaceHandling:
-    def __init__(self, prot_path):
+    def __init__(self, prot_path, PPI_file= None):
+        if PPI_file != None:
+            self.PPI_file= PPI_file
         self.proteins_dict= {}
         self.domain_types_dict= {}
-        self.known_PPIs= []
+        self.known_PPIs= set()
         self.protein_pairs_dict= {}
         self.prot_path= prot_path
 
@@ -78,13 +80,13 @@ class InterfaceHandling:
             elif domain_id[:2] == 'SM':
                 self.domain_types_dict[domain_id].source= 'SMART'
 
-    def read_in_known_PPIs(self, PPI_file):
-        with open(PPI_file, 'r') as file:
+    def read_in_known_PPIs(self):
+        with open(self.PPI_file, 'r') as file:
             lines= [line.strip() for line in file.readlines()] # PRS saved as .tsv
         for line in lines:
             tab= line.split('\t')
             PPI_instance= sorted(list([tab[0], tab[1]])) # a sorted protein pair as list
-            self.known_PPIs.append(tuple(PPI_instance)) # PPI pair saved as tuple
+            self.known_PPIs.add(tuple(PPI_instance)) # PPI pair saved as tuple
         print(f'{len(self.known_PPIs)} PPIs read in.')
 
     def read_in_domain_matches(self): # This one reads in all domain matches, useful for DDI predictor
