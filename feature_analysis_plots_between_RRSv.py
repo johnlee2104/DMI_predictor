@@ -1,12 +1,17 @@
 import sys
 import pandas as pd
 import numpy as np
+import seaborn as sns
 import matplotlib.pyplot as plt
 
 all_features= ['Probability', 'IUPredLong', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'DomainFreqbyProtein1', 'DomainFreqinProteome1']
 all_columns= ['Accession', 'Elm', 'Regex', 'Pattern', 'Probability', 'interactorElm', 'ElmMatch', 'IUPredLong', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'TotalNetworkDegree', 'vertex_with_domain_in_real_network', 'interactorDomain', 'DomainID1', 'DomainMatch1', 'DomainMatchEvalue1', 'DomainFreqbyProtein1', 'DomainFreqinProteome1', 'DomainID2', 'DomainMatch2', 'DomainMatchEvalue2', 'DomainFreqbyProtein2', 'DomainFreqinProteome2', 'DMISource']
 
 DMI_count_df= pd.DataFrame(data= {'Class': ['CLV', 'DEG', 'DOC', 'LIG', 'MOD', 'TRG'], 'ElmDB': [11, 25, 31, 165, 37, 22]})
+
+fontsize= 12
+title_fontsize= 14
+sns.set_style('darkgrid')
 
 def preprocessing_dataset(input): # takes the PRS and RRS, concatenate them and preprocessing the NaNs and dummy value.
     if type(input) == list:
@@ -38,8 +43,8 @@ def make_DMI_fraction_plot(PRS_RRSvs_list):
 
     N= 6
     ind= np.arange(N)
-    width= 0.1
-    color= ['c', 'm', 'y', 'k', 'b']
+    width= 0.15
+    color= sns.color_palette('deep')
 
     plt.figure(figsize= (8,6))
     for i, ele in enumerate(zip(color, DMI_count_df.columns[-5:])):
@@ -47,10 +52,9 @@ def make_DMI_fraction_plot(PRS_RRSvs_list):
         plt.bar(ind + int(i)*width, DMI_count_df[col], width, color= c, label= col)
 
     plt.xticks(ind + 2*width, DMI_count_df.Class)
-    plt.title(f'Fraction of DMI represented in the PRS and RRSv1,2,3,4 by class')
-    plt.ylabel('Fraction of DMI types with DMI instance')
-    plt.legend(loc= 'best')
-    plt.grid(alpha= 0.2)
+    plt.title(f'Fraction of DMI type represented in the PRS and RRSv1,2,3,4 by class', fontsize= title_fontsize)
+    plt.ylabel('Fraction of DMI types with DMI instance', fontsize= fontsize)
+    plt.legend(bbox_to_anchor= (1.05, 1), loc= 'upper left', borderaxespad= 0.)
     plt.ylim([0, 1.05])
     plt.savefig(plot_path + f'/DMI_fraction_PRS_RRSv1_2_3_4.pdf', bbox_inches= 'tight')
     print(f'DMI fraction plot of PRS and RRSv1_2_3_4 saved in {plot_path}.')
@@ -61,10 +65,10 @@ def make_feature_violin_plots(PRS_RRSvs_list):
     plt.figure(figsize= (6,6))
     plt.violinplot([-np.log10(df['Probability']) for df in PRS_RRSvs_list], showmedians= True, widths= 0.8)
     plt.xticks([i + 1 for i in range(len(PRS_RRSvs_list))], ['PRS', 'RRSv1', 'RRSv2', 'RRSv3', 'RRSv4'])
-    plt.title(f'SLiM probabibility in PRS and RRSv1,2,3,4')
-    plt.ylabel('SLiM Probability in -log10')
+    plt.title(f'SLiM probabibility distribution in PRS and RRSv1,2,3,4', fontsize= title_fontsize)
+    plt.ylabel('SLiM Probability in -log10', fontsize= fontsize)
     plt.ylim([0, 16])
-    plt.grid(alpha= 0.2)
+    # plt.grid(alpha= 0.2)
     plt.savefig(plot_path + f'/slim_probability_vp_PRS_RRSv1_2_3_4.pdf', bbox_inches= 'tight')
     print(f'SLiM probability vp of PRS and RRSv1_2_3_4 saved in {plot_path}.')
     plt.close()
@@ -72,9 +76,9 @@ def make_feature_violin_plots(PRS_RRSvs_list):
     plt.figure(figsize= (6,6))
     plt.violinplot([df['DomainFreqbyProtein'] for df in PRS_RRSvs_list], showmedians= True, widths= 0.8)
     plt.xticks([i + 1 for i in range(len(PRS_RRSvs_list))], ['PRS', 'RRSv1', 'RRSv2', 'RRSv3', 'RRSv4'])
-    plt.title(f'Domain frequency counted by protein in PRS and RRSv1,2,3,4')
-    plt.ylabel('Domain frequency counted by protein')
-    plt.grid(alpha= 0.2)
+    plt.title(f'Domain frequency distribution counted by protein in PRS and RRSv1,2,3,4', fontsize= title_fontsize)
+    plt.ylabel('Domain frequency counted by protein', fontsize= fontsize)
+    # plt.grid(alpha= 0.2)
     plt.savefig(plot_path + f'/Domainfreqbyprotein_vp_PRS_RRSv1_2_3_4.pdf', bbox_inches= 'tight')
     print(f'DomainFreqbyProtein vp of PRS and RRSv1_2_3_4 saved in {plot_path}.')
     plt.close()
@@ -82,11 +86,21 @@ def make_feature_violin_plots(PRS_RRSvs_list):
     plt.figure(figsize= (6,6))
     plt.violinplot([df['DomainFreqinProteome'] for df in PRS_RRSvs_list], showmedians= True, widths= 0.8)
     plt.xticks([i + 1 for i in range(len(PRS_RRSvs_list))], ['PRS', 'RRSv1', 'RRSv2', 'RRSv3', 'RRSv4'])
-    plt.title(f'Domain frequency in human proteome in PRS and RRSv1,2,3,4')
-    plt.ylabel('Domain frequency in human proteome')
-    plt.grid(alpha= 0.2)
+    plt.title(f'Domain frequency distribution in human proteome in PRS and RRSv1,2,3,4', fontsize= title_fontsize)
+    plt.ylabel('Domain frequency in human proteome', fontsize= fontsize)
+    # plt.grid(alpha= 0.2)
     plt.savefig(plot_path + f'/Domainfreqinproteome_vp_PRS_RRSv1_2_3_4.pdf', bbox_inches= 'tight')
     print(f'DomainFreqinProteome vp of PRS and RRSv1_2_3_4 saved in {plot_path}.')
+    plt.close()
+
+    plt.figure(figsize= (6,6))
+    plt.violinplot([df['IUPredShort'] for df in PRS_RRSvs_list], showmedians= True, widths= 0.8)
+    plt.xticks([i + 1 for i in range(len(PRS_RRSvs_list))], ['PRS', 'RRSv1', 'RRSv2', 'RRSv3', 'RRSv4'])
+    plt.title(f'IUPredShort distribution in PRS and RRSv1,2,3,4', fontsize= title_fontsize)
+    plt.ylabel('IUPredShort scores', fontsize= fontsize)
+    # plt.grid(alpha= 0.2)
+    plt.savefig(plot_path + f'/IUPredShort_vp_PRS_RRSv1_2_3_4.pdf', bbox_inches= 'tight')
+    print(f'IUPredShort vp of PRS and RRSv1_2_3_4 saved in {plot_path}.')
     plt.close()
 
 if __name__ == '__main__':

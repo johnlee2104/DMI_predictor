@@ -88,21 +88,22 @@ class RRSv3Formation(RRSFormation.RRSFormation):
                     domain_prots= InterfaceHandling.domain_groups[tuple([domain])]
                 else:
                     domain_prots= InterfaceHandling.domain_groups[tuple(domain)]
-                if len(list(itertools.product(domain_prots, slim_prots))) >= 10:
-                    random_protein_pair= random.sample(list(itertools.product(domain_prots, slim_prots)), 10)
-                else:
-                    random_protein_pair= list(itertools.product(domain_prots, slim_prots))
-                for pp in random_protein_pair:
-                    pp= tuple(sorted(pp))
-                    if pp not in InterfaceHandling.known_PPIs:
-                        InterfaceHandling.protein_pairs_dict[pp]= DMIDB.ProteinPair(pp[0], pp[1])
-            InterfaceHandling.find_DMI_matches()
-            if len(InterfaceHandling.protein_pairs_dict) >= number_instances:
-                for protpair in random.sample(list(InterfaceHandling.protein_pairs_dict), number_instances):
-                    self.RRS_instances= self.RRS_instances + random.sample(InterfaceHandling.protein_pairs_dict[protpair].dmi_matches_dict[slim_id], 1)
-            else:
-                for protpair, protpair_inst in InterfaceHandling.protein_pairs_dict.items():
-                    self.RRS_instances= self.RRS_instances + random.sample(protpair_inst.dmi_matches_dict[slim_id], 1)
+                if (any(domain_prots)) & (any(slim_prots)):
+                    if len(list(itertools.product(domain_prots, slim_prots))) > 50:
+                        random_protein_pair= random.sample(list(itertools.product(domain_prots, slim_prots)), 50)
+                    else:
+                        random_protein_pair= list(itertools.product(domain_prots, slim_prots))
+                    for pp in random_protein_pair:
+                        pp= tuple(sorted(pp))
+                        if pp not in InterfaceHandling.known_PPIs:
+                            InterfaceHandling.protein_pairs_dict[pp]= DMIDB.ProteinPair(pp[0], pp[1])
+                    InterfaceHandling.find_DMI_matches()
+                    if len(InterfaceHandling.protein_pairs_dict) >= number_instances:
+                        for protpair in random.sample(list(InterfaceHandling.protein_pairs_dict), number_instances):
+                            self.RRS_instances= self.RRS_instances + random.sample(InterfaceHandling.protein_pairs_dict[protpair].dmi_matches_dict[slim_id], 1)
+                    else:
+                        for protpair, protpair_inst in InterfaceHandling.protein_pairs_dict.items():
+                            self.RRS_instances= self.RRS_instances + random.sample(protpair_inst.dmi_matches_dict[slim_id], 1)
 
 if __name__ == '__main__':
 

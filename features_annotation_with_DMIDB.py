@@ -13,7 +13,7 @@ and without SLiM features. Using the annotate_slim_features will annotate SLiM f
 def annotate_slim_domain_features_on_dataset(input_list):
     for input_file in input_list:
         df= pd.read_csv(input_file, sep= '\t', index_col= 0)
-        new_cols= ['IUPredLong', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'TotalNetworkDegree', 'vertex_with_domain_in_real_network', 'DomainFreqbyProtein1', 'DomainFreqbyProtein2', 'DomainFreqinProteome1', 'DomainFreqinProteome2', 'DMISource']
+        new_cols= ['IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'TotalNetworkDegree', 'vertex_with_domain_in_real_network', 'DomainFreqbyProtein1', 'DomainFreqbyProtein2', 'DomainFreqinProteome1', 'DomainFreqinProteome2', 'DMISource']
         for col in new_cols:
             if col not in df.columns:
                 df[col]= float('NaN')
@@ -28,21 +28,24 @@ def annotate_slim_domain_features_on_dataset(input_list):
             start, end= row['ElmMatch'].split('-')
             start= int(start)
             end= int(end)
-            pattern= row['Pattern']
+            pattern= row['Pattern'].replace('"', '')
             slim_match_inst= SLiMMatch(InterfaceHandling.dmi_types_dict[slim_id], InterfaceHandling.slim_types_dict[slim_id], InterfaceHandling.proteins_dict[slim_protein], start, end, pattern)
-            slim_match_inst.get_slim_match_features()
+            if pd.notna(row['DomainID2']):
+                slim_match_inst.get_slim_match_features(domain_type_list= [row['DomainID1'], row['DomainID2']])
+            else:
+                slim_match_inst.get_slim_match_features(domain_type_list= [row['DomainID1']])
             features_dict= slim_match_inst.__dict__
             for feature in list(features_dict)[6:]:
                 if features_dict[feature] != None:
                     df.loc[ind, feature]= features_dict[feature]
             df.loc[ind, 'TotalNetworkDegree']= InterfaceHandling.proteins_dict[slim_protein].network_degree
-            df.loc[ind, 'DomainFreqbyProtein1']=  InterfaceHandling.domain_types_dict[row['DomainID1']].DomainFreqbyProtein
-            df.loc[ind, 'DomainFreqinProteome1']=  InterfaceHandling.domain_types_dict[row['DomainID1']].DomainFreqinProteome
-            if pd.notna(row['DomainID2']):
-                df.loc[ind, 'DomainFreqbyProtein2']=  InterfaceHandling.domain_types_dict[row['DomainID2']].DomainFreqbyProtein
-                df.loc[ind, 'DomainFreqinProteome2']=  InterfaceHandling.domain_types_dict[row['DomainID2']].DomainFreqinProteome
+            # df.loc[ind, 'DomainFreqbyProtein1']=  InterfaceHandling.domain_types_dict[row['DomainID1']].DomainFreqbyProtein
+            # df.loc[ind, 'DomainFreqinProteome1']=  InterfaceHandling.domain_types_dict[row['DomainID1']].DomainFreqinProteome
+            # if pd.notna(row['DomainID2']):
+            #     df.loc[ind, 'DomainFreqbyProtein2']=  InterfaceHandling.domain_types_dict[row['DomainID2']].DomainFreqbyProtein
+            #     df.loc[ind, 'DomainFreqinProteome2']=  InterfaceHandling.domain_types_dict[row['DomainID2']].DomainFreqinProteome
 
-        columns= ['Accession', 'Elm', 'Regex', 'Pattern', 'Probability', 'interactorElm', 'ElmMatch', 'IUPredLong', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'TotalNetworkDegree', 'vertex_with_domain_in_real_network', 'interactorDomain', 'DomainID1', 'DomainMatch1', 'DomainMatchEvalue1', 'DomainFreqbyProtein1', 'DomainFreqinProteome1', 'DomainID2', 'DomainMatch2', 'DomainMatchEvalue2', 'DomainFreqbyProtein2', 'DomainFreqinProteome2', 'DMISource']
+        columns= ['Accession', 'Elm', 'Regex', 'Pattern', 'Probability', 'interactorElm', 'ElmMatch', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'TotalNetworkDegree', 'vertex_with_domain_in_real_network', 'interactorDomain', 'DomainID1', 'DomainMatch1', 'DomainMatchEvalue1', 'DomainFreqbyProtein1', 'DomainFreqinProteome1', 'DomainID2', 'DomainMatch2', 'DomainMatchEvalue2', 'DomainFreqbyProtein2', 'DomainFreqinProteome2', 'DMISource']
         df= df[columns]
         df.to_csv(input_file[:-4] + '_slim_domain_features_annotated.tsv', sep= '\t')
         print(f'New file saved as {input_file[:-4]}_slim_domain_features_annotated.tsv')

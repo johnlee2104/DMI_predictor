@@ -1,14 +1,19 @@
 import sys
 import pandas as pd
+import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
 
-all_features= ['Probability', 'IUPredLong', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'DomainFreqbyProtein1', 'DomainFreqinProteome1']
-all_features_renamed= ['Probability', 'IUPredLong', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'DomainFreqbyProtein', 'DomainFreqinProteome']
-all_features_reordered= ['Probability', 'IUPredLong', 'IUPredShort', 'Anchor', 'DomainOverlap', 'DomainEnrichment_pvalue', 'qfo_RLC', 'vertebrates_RLC', 'mammalia_RLC',  'metazoa_RLC', 'qfo_RLCvar', 'vertebrates_RLCvar', 'mammalia_RLCvar', 'metazoa_RLCvar', 'DomainEnrichment_zscore', 'DomainFreqbyProtein', 'DomainFreqinProteome']
+all_features= ['Probability', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'DomainFreqbyProtein1', 'DomainFreqinProteome1']
+all_features_renamed= ['Probability', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'DomainFreqbyProtein', 'DomainFreqinProteome']
+all_features_reordered= ['Probability', 'IUPredShort', 'Anchor', 'DomainOverlap', 'DomainEnrichment_pvalue', 'qfo_RLC', 'vertebrates_RLC', 'mammalia_RLC',  'metazoa_RLC', 'qfo_RLCvar', 'vertebrates_RLCvar', 'mammalia_RLCvar', 'metazoa_RLCvar', 'DomainEnrichment_zscore', 'DomainFreqbyProtein', 'DomainFreqinProteome']
+all_features_reordered_label= ['Probability', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'vertebrates_RLC', 'mammalia_RLC',  'metazoa_RLC', 'qfo_RLCvar', 'vertebrates_RLCvar', 'mammalia_RLCvar', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'DomainFreqbyProtein', 'DomainFreqinProteome', 'label']
 
 DMI_count_df= pd.DataFrame(data= {'Class': ['CLV', 'DEG', 'DOC', 'LIG', 'MOD', 'TRG'], 'ElmDB': [11, 25, 31, 165, 37, 22]})
 
+fontsize= 12
+title_fontsize= 14
+sns.set_style('darkgrid')
 
 def preprocessing_dataset(PRS_input, RRS_input_list): # takes the PRS and RRS, concatenate them and preprocessing the NaNs and dummy value.
     PRS= pd.read_csv(PRS_input, sep= '\t', index_col= 0)
@@ -47,10 +52,10 @@ def make_DMI_fraction_plot(PRS, RRS):
     plt.bar(ind + width, DMI_count_df.RRS_fraction, width, color= 'b', label= 'RRS')
 
     plt.xticks(ind + width / 2, DMI_count_df.Class)
-    plt.title(f'Fraction of DMI represented in the PRS and {RRS_version} by class')
-    plt.ylabel('Fraction of DMI types with DMI instance')
+    plt.title(f'Fraction of DMI represented in the PRS and {RRS_version} by class', fontsize= title_fontsize)
+    plt.ylabel('Fraction of DMI types with DMI instance', fontsize= fontsize)
     plt.legend(loc= 'best')
-    plt.grid(alpha= 0.2)
+    # plt.grid(alpha= 0.2)
     plt.ylim([0, 1.0])
     plt.savefig(plot_path + f'/DMI_fraction_PRS_{RRS_version}_1_2_3.pdf', bbox_inches= 'tight')
     print(f'DMI fraction plot of {RRS_version} saved in {plot_path}.')
@@ -69,40 +74,41 @@ def make_feature_violin_plots(PRS, RRS):
     vp2= ax.violinplot(RRS_data, showmedians= True, widths= 0.8)
 
     plt.setp(ax, xticks= [x + 1 for x in range(len(all_features_reordered[1:-3]))], xticklabels= all_features_reordered[1:-3])
-    plt.xticks(rotation= 90, fontsize= 7)
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation = 45, horizontalalignment= 'right')
     plt.legend([vp1['bodies'][0], vp2['bodies'][0]], ['PRS', f'{RRS_version}'], loc= 'best')
-    plt.grid(alpha= 0.2)
+    plt.title(f'Distribution of features in PRS and {RRS_version}_1,_2,_3', fontsize= title_fontsize)
+    # plt.grid(alpha= 0.2)
     plt.savefig(plot_path + f'/most_features_vp_PRS_{RRS_version}_1_2_3.pdf', bbox_inches= 'tight')
     print(f'Most features vp of {RRS_version} saved in {plot_path}.')
     plt.close()
 
     plt.figure(figsize= (6,6))
     plt.violinplot([-np.log10(PRS['Probability']), -np.log10(RRS['Probability'])], showmedians= True, widths= 0.8)
-    plt.xticks([1,2], ['PRS', f'{RRS_version}'])
-    plt.title(f'SLiM probabibility in PRS and {RRS_version}_1,_2,_3')
-    plt.ylabel('SLiM Probability in -log10')
+    plt.xticks([1,2], ['PRS', f'{RRS_version}'], fontsize= fontsize)
+    plt.title(f'SLiM probabibility in PRS and {RRS_version}_1,_2,_3', fontsize= title_fontsize)
+    plt.ylabel('SLiM Probability in -log10', fontsize= fontsize)
     plt.ylim([0, 16])
-    plt.grid(alpha= 0.2)
+    # plt.grid(alpha= 0.2)
     plt.savefig(plot_path + f'/slim_probability_vp_PRS_{RRS_version}_1_2_3.pdf', bbox_inches= 'tight')
     print(f'SLiM probability vp of {RRS_version} saved in {plot_path}.')
     plt.close()
 
     plt.figure(figsize= (6,6))
     plt.violinplot([PRS['DomainFreqbyProtein'], RRS['DomainFreqbyProtein']], showmedians= True, widths= 0.8)
-    plt.xticks([1,2], ['PRS', f'{RRS_version}'])
-    plt.title(f'Domain frequency counted by protein in PRS and {RRS_version}_1,_2,_3')
-    plt.ylabel('Domain frequency counted by protein')
-    plt.grid(alpha= 0.2)
+    plt.xticks([1,2], ['PRS', f'{RRS_version}'], fontsize= fontsize)
+    plt.title(f'Domain frequency counted by protein in PRS and {RRS_version}_1,_2,_3', fontsize= title_fontsize)
+    plt.ylabel('Domain frequency counted by protein', fontsize= fontsize)
+    # plt.grid(alpha= 0.2)
     plt.savefig(plot_path + f'/domainfreqbyprotein_vp_PRS_{RRS_version}_1_2_3.pdf', bbox_inches= 'tight')
     print(f'DomainFreqbyProtein vp of {RRS_version} saved in {plot_path}.')
     plt.close()
 
     plt.figure(figsize= (6,6))
     plt.violinplot([PRS['DomainFreqinProteome'], RRS['DomainFreqinProteome']], showmedians= True, widths= 0.8)
-    plt.xticks([1,2], ['PRS', f'{RRS_version}'])
-    plt.title(f'Domain frequency in human proteome in PRS and {RRS_version}_1,_2,_3')
-    plt.ylabel('Domain frequency in human proteome')
-    plt.grid(alpha= 0.2)
+    plt.xticks([1,2], ['PRS', f'{RRS_version}'], fontsize= fontsize)
+    plt.title(f'Domain frequency in human proteome in PRS and {RRS_version}_1,_2,_3', fontsize= title_fontsize)
+    plt.ylabel('Domain frequency in human proteome', fontsize= fontsize)
+    # plt.grid(alpha= 0.2)
     plt.savefig(plot_path + f'/domainfreqinproteome_vp_PRS_{RRS_version}_1_2_3.pdf', bbox_inches= 'tight')
     print(f'DomainFreqinProteome vp of {RRS_version} saved in {plot_path}.')
     plt.close()
@@ -174,13 +180,33 @@ def make_feature_violin_plots(PRS, RRS):
     kwargs.update(transform=ax2.transAxes)  # switch to the bottom axes
     ax2.plot((-d, +d), (1 - d, 1 + d), **kwargs)  # bottom-left diagonal
 
-    f.text(0.04, 0.5, 'Domain Enrichmnet z-score', ha='center', va='center', rotation= 'vertical')
-    f.text(0.5, 0.92, f'Domain Enrichment z-score in PRS and {RRS_version}_1,_2,_3', ha='center', va='center')
+    f.text(0.04, 0.5, 'Domain Enrichmnet z-score', ha='center', va='center', rotation= 'vertical', fontsize= fontsize)
+    f.text(0.5, 0.92, f'Domain Enrichment z-score in PRS and {RRS_version}_1,_2,_3', ha='center', va='center', fontsize= fontsize)
 
     plt.setp(ax_bottom, xticks= [1.0, 2.0], xticklabels= ['PRS', 'RRS'])
+    plt.xticks(fontsize= fontsize)
     plt.savefig(plot_path + f'/domain_enrichment_zscore_vp_PRS_{RRS_version}_1_2_3.pdf', bbox_inches= 'tight')
     print(f'Domain Enrichment z-score vp of {RRS_version} saved in {plot_path}.')
     plt.close()
+
+def make_correlation_heatmap(PRS, RRS):
+    PRS['label']= 1.0
+    RRS['label']= 0.0
+    PRS_RRS_features= pd.concat([PRS, RRS], axis= 0)
+    PRS_RRS_features= PRS_RRS_features[all_features_reordered_label]
+    PRS_RRS_corr= PRS_RRS_features.corr()
+
+    plt.figure(figsize= (8,8))
+    ax= sns.heatmap(PRS_RRS_corr, vmin= -1, vmax= 1, center= 0, cmap= sns.diverging_palette(20, 220, n= 200), square= True, linewidths= 0.5, cbar_kws= {'shrink': 0.8})
+    ax.set_xticklabels(ax.get_xticklabels(), rotation= 45, ha= 'right')
+    ax.tick_params(axis= 'both', which= 'major', labelsize= fontsize - 1)
+    ax.tick_params(axis= 'both', which= 'minor', labelsize= fontsize - 1)
+    plt.title(f'Correlation heatmap of features and labels in PRS and {RRS_version}', fontsize= title_fontsize)
+    plt.savefig(plot_path + f'/corr_heatmap_PRS_{RRS_version}_1_2_3.pdf', bbox_inches= 'tight')
+    print(f'Correlation heatmap of {RRS_version} saved in {plot_path}.')
+    plt.close()
+    file_name= f'PRS_{RRS_version}_corr_table.tsv'
+    PRS_RRS_corr.to_csv(plot_path[:-5] + file_name, sep= '\t')
 
 if __name__ == '__main__':
     PRS = sys.argv[1]
@@ -194,6 +220,7 @@ if __name__ == '__main__':
     PRS, RRS= preprocessing_dataset(PRS, RRS_input_list)
     make_DMI_fraction_plot(PRS, RRS)
     make_feature_violin_plots(PRS, RRS)
+    make_correlation_heatmap(PRS, RRS)
 
     # python3 feature_analysis_plots_within_RRSv.py ../PRS/PRS_v3_only_human_with_pattern_alt_iso_swapped_removed_20210413_slim_domain_features_annotated.tsv ../RRS/RRSv1/RRSv1_1_20210427_slim_domain_features_annotated.tsv ../RRS/RRSv1/RRSv1_2_20210427_slim_domain_features_annotated.tsv ../RRS/RRSv1/RRSv1_3_20210427_slim_domain_features_annotated.tsv
     # python3 feature_analysis_plots_within_RRSv.py ../PRS/PRS_v3_only_human_with_pattern_alt_iso_swapped_removed_20210413_slim_domain_features_annotated.tsv ../RRS/RRSv2/RRSv2_1_20210428_slim_domain_features_annotated.tsv ../RRS/RRSv2/RRSv2_2_20210428_slim_domain_features_annotated.tsv ../RRS/RRSv2/RRSv2_3_20210428_slim_domain_features_annotated.tsv

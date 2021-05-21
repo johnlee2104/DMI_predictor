@@ -8,7 +8,7 @@ class RRSv1Formation(RRSFormation.RRSFormation):
     def __init__(self, RRS_version):
         super().__init__(RRS_version)
 
-    def make_random_protein_pairs(self): 
+    def make_random_protein_pairs(self):
 
         print('Generating random pairs of proteins...')
         random_protein_pair= [tuple(sorted(pp)) for pp in itertools.combinations(list(InterfaceHandling.proteins_dict), 2)]
@@ -55,17 +55,17 @@ if __name__ == '__main__':
     RRS_version= list(sys.argv[11:])
 
     InterfaceHandling= DMIDB.InterfaceHandling(prot_path, slim_type_file, dmi_type_file, smart_domain_types_file, pfam_domain_types_file, smart_domain_matches_json_file, pfam_domain_matches_json_file, features_path, PPI_file= PPI_file)
-    RRS_v1= RRSv1Formation(RRS_version)
     InterfaceHandling.read_in_proteins()
     InterfaceHandling.read_in_known_PPIs()
-    RRS_v1.make_random_protein_pairs()
     InterfaceHandling.read_in_slim_types()
     InterfaceHandling.read_in_DMI_types()
     InterfaceHandling.read_in_domain_types()
     InterfaceHandling.read_in_domain_matches()
     InterfaceHandling.create_slim_matches_all_proteins()
-    InterfaceHandling.find_DMI_matches()
     for RRS in RRS_version:
+        RRS_v1= RRSv1Formation(RRS)
+        RRS_v1.make_random_protein_pairs()
+        InterfaceHandling.find_DMI_matches()
         RRS_v1.RRS_instances= []
         RRS_v1.select_RRS_instances(number_instances)
         RRS_v1.write_out_RRS_instances(InterfaceHandling)

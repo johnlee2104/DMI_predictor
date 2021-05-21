@@ -10,7 +10,7 @@ class Protein(protein_interaction_interfaces.Protein):
     def __init__(self, protein_id):
         super().__init__(protein_id)
         self.slim_matches_dict= {} # {'slim_id': [slim_match1, slim_match2, ...]}
-        self.IUPredLong_scores= []
+        # self.IUPredLong_scores= [] # IUPredLong will not be used for predictor due to high correlation with IUPShort and Anchor
         self.IUPredShort_scores= []
         self.Anchor_scores= []
         self.DomainOverlap_scores= []
@@ -42,10 +42,10 @@ class Protein(protein_interaction_interfaces.Protein):
                 self.slim_matches_dict[slim_type_inst.slim_id].append(slim_match_inst)
 
     def read_in_features(self, features_path):
-        with open(features_path + '/IUPred_long/' + self.protein_id + '_iupredlong.txt', 'r') as f:
-            lines= [line.strip() for line in f.readlines()]
-            for line in lines[1:]:
-                self.IUPredLong_scores.append(float(line.split('\t')[2]))
+        # with open(features_path + '/IUPred_long/' + self.protein_id + '_iupredlong.txt', 'r') as f:
+        #     lines= [line.strip() for line in f.readlines()]
+        #     for line in lines[1:]:
+        #         self.IUPredLong_scores.append(float(line.split('\t')[2]))
         with open(features_path + '/IUPred_short/' + self.protein_id + '_iupredshort.txt', 'r') as f:
             lines= [line.strip() for line in f.readlines()]
             for line in lines[1:]:
@@ -72,7 +72,7 @@ class Protein(protein_interaction_interfaces.Protein):
                     self.metazoa_RLC_scores= result["metazoa"]
         except:
             print(f'{self.protein_id} does not have a conservation score file.')
-        if any(self.IUPredLong_scores):
+        if any(self.IUPredShort_scores):
             print(f'{self.protein_id} IUPred long scores saved.')
         if any(self.qfo_RLC_scores):
             print(f'{self.protein_id} qfo RLC scores saved.')
@@ -108,7 +108,7 @@ class SLiMMatch:
         self.start= start
         self.end= end
         self.pattern= pattern
-        self.IUPredLong= None
+        # self.IUPredLong= None
         self.IUPredShort= None
         self.Anchor= None
         self.DomainOverlap= None
@@ -124,24 +124,24 @@ class SLiMMatch:
         self.DomainEnrichment_zscore= None
         self.vertex_with_domain_in_real_network= None
 
-    def get_slim_match_features(self):
+    def get_slim_match_features(self, domain_type_list= None):
         defined_positions_url= 'http://slim.icr.ac.uk/restapi/functions/defined_positions?'
         start= int(self.start)
         end= int(self.end)
         pattern= self.pattern
         regex= self.slim_type_inst.regex
-        self.IUPredLong= float(sum(self.prot_inst.IUPredLong_scores[start-1:end])/(end - start + 1))
+        # self.IUPredLong= float(sum(self.prot_inst.IUPredLong_scores[start-1:end])/(end - start + 1))
         self.IUPredShort= float(sum(self.prot_inst.IUPredShort_scores[start-1:end])/(end - start + 1))
         self.Anchor= float(sum(self.prot_inst.Anchor_scores[start-1:end])/(end - start + 1))
         self.DomainOverlap= float(sum(self.prot_inst.DomainOverlap_scores[start-1:end])/(end - start + 1))
         print(f'Average IUPred & DomainOverlap scores of {self.slim_type_inst.slim_id} at {self.start}-{self.end} calculated for {self.prot_inst.protein_id}.')
-        payload= {'motif':regex, 'sequence':pattern}
+        payload= {'motif': regex, 'sequence': pattern}
         try:
             timeout= 61
             r= requests.get(defined_positions_url, params= payload, timeout= timeout)
             if r.status_code== requests.codes.ok:
                 response= r.json()
-                defined_positions= [start + (ind - 1) for ind in response['indexes']]
+                defined_positions= [start + (ind - 1) for ind in response["indexes"]]
                 for i, cons_type in enumerate([self.prot_inst.qfo_RLC_scores, self.prot_inst.vertebrates_RLC_scores, self.prot_inst.mammalia_RLC_scores, self.prot_inst.metazoa_RLC_scores]):
                     if any(cons_type):
                         defined_positions_cons_scores= []
@@ -167,14 +167,14 @@ class SLiMMatch:
                                 self.metazoa_RLC= sigmotif
                                 self.metazoa_RLCvar= varRLCprob
                         else:
-                            self.qfo_RLC= 'Problem with regex or motif'
-                            self.qfo_RLCvar= 'Problem with regex or motif'
-                            self.vertebrates_RLC= 'Problem with regex or motif'
-                            self.vertebrates_RLCvar= 'Problem with regex or motif'
-                            self.mammalia_RLC= 'Problem with regex or motif'
-                            self.mammalia_RLCvar= 'Problem with regex or motif'
-                            self.metazoa_RLC= 'Problem with regex or motif'
-                            self.metazoa_RLCvar= 'Problem with regex or motif'
+                            self.qfo_RLC= ','.join([p for p in defined_positions])
+                            self.qfo_RLCvar= ','.join([s for s in defined_positions_cons_scores])
+                            self.vertebrates_RLC= 'No defined positions conservation score'
+                            self.vertebrates_RLCvar= 'No defined positions conservation score'
+                            self.mammalia_RLC= 'No defined positions conservation score'
+                            self.mammalia_RLCvar= 'No defined positions conservation score'
+                            self.metazoa_RLC= 'No defined positions conservation score'
+                            self.metazoa_RLCvar= 'No defined positions conservation score'
             else:
                 print('Bad response code: Check regex and matched pattern')
                 self.qfo_RLC= 'Problem with regex or motif'
@@ -197,48 +197,50 @@ class SLiMMatch:
             self.metazoa_RLCvar= f'SLiM server not responding after {timeout} time-out.'
         if any(self.prot_inst.networks):
             num_rand_networks= len(self.prot_inst.networks) - 1 # The first network is the real network
-            domain_match_list= self.dmi_match_inst.domain_interface_match # returns a list of domain match that is found in DMI match
             vertices_with_overlapping_domains= {} # saved as {network_id:protein_count_with_overlapping_domain}
-            # domain_match= set([d.domain_id for d in domain_match_list])
-            # for network_id, network in self.prot_inst.networks.items():
-            #     count= 0
-            #     for partner in network:
-            #         partner_domains= set(partner.domain_matches_dict.keys())
-            #         if domain_match.intersection(partner_domains) == domain_match: # strict filtering because the partner MUST have the same domain interface i.e. 1 domain or 2 domains in one protein
-            #             count += 1
-            #     vertices_with_overlapping_domains[int(network_id)]= count
-            if len(cognate_domains) == 1: # Cases of 1 domain or 2 domains in one protein
-                domains= set(self.dmi_type_inst.domain_interfaces[0].domain_dict.keys())
+            if domain_type_list == None:
+                domain_match_list= self.dmi_type_inst.domain_interfaces # returns a list of domain match that is found in DMI match
+                if len(domain_match_list) == 1: # Cases of 1 domain or 2 domains in one protein
+                    domains= set(self.dmi_type_inst.domain_interfaces[0].domain_dict.keys())
+                    for network_id, network in self.prot_inst.networks.items():
+                        count= 0
+                        for partner in network:
+                            partner_domains= set(partner.domain_matches_dict.keys())
+                            if domains.intersection(partner_domains) == domains: # strict filtering because the partner MUST have the same domain interface i.e. 1 domain or 2 domains in one protein
+                                count += 1
+                        vertices_with_overlapping_domains[int(network_id)]= count
+                else: # cases of len(cognate_domains) == 2 -> 2 domains in 2 proteins
+                # Need to find which domain the interaction partner has, and find only those proteins in the real network
+                    domains= set()
+                    for domain_intf_obj in cognate_domains:
+                        for domain_id in domain_intf_obj.domain_dict.keys():
+                            domains.add(domain_id)
+                    for network_id, network in self.prot_inst.networks.items():
+                        count= 0
+                        for partner in network:
+                            partner_domains= set(partner.domain_matches_dict.keys())
+                            if any(domains.intersection(partner_domains)): # loose filtering because the partner only needs to have at least oen of the domain interface
+                                count += 1
+                        vertices_with_overlapping_domains[int(network_id)]= count
+            else:
+                domains= set(domain_type_list)
                 for network_id, network in self.prot_inst.networks.items():
                     count= 0
                     for partner in network:
                         partner_domains= set(partner.domain_matches_dict.keys())
-                        if domains.intersection(partner_domains) == domains: # strict filtering because the partner MUST have the same domain interface i.e. 1 domain or 2 domains in one protein
+                        if domains.intersection(partner_domains) == domains: # strict filtering because the partner MUST have the same domain interface as that input domain list i.e. 1 domain or 2 domains in one protein
                             count += 1
                     vertices_with_overlapping_domains[int(network_id)]= count
-            else: # cases of len(cognate_domains) == 2 -> 2 domains in 2 proteins
-            # Need to find which domain the interaction partner has, and find only those proteins in the real network
-                domains= set()
-                for domain_intf_obj in cognate_domains:
-                    for domain_id in domain_intf_obj.domain_dict.keys():
-                        domains.add(domain_id)
-                for network_id, network in self.prot_inst.networks.items():
-                    count= 0
-                    for partner in network:
-                        partner_domains= set(partner.domain_matches_dict.keys())
-                        if any(domains.intersection(partner_domains)): # loose filtering because the partner only needs to have at least oen of the domain interface
-                            count += 1
-                    vertices_with_overlapping_domains[int(network_id)]= count
-            count_in_real_network= vertices_with_overlapping_domains[0] # no. of vertices with domain in real network
-            self.vertex_with_domain_in_real_network= count_in_real_network
-            num_network_more_equal_real= len([v for v in list(vertices_with_overlapping_domains.values())[1:] if v >= count_in_real_network])
+            self.vertex_with_domain_in_real_network= vertices_with_overlapping_domains[0] # no. of vertices with domain in real network
+            # evaluation of domain enrichment in random networks
+            num_network_more_equal_real= len([v for v in list(vertices_with_overlapping_domains.values())[1:] if v >= self.vertex_with_domain_in_real_network])
             rand_network_mean= np.mean(list(vertices_with_overlapping_domains.values())[1:])
             rand_network_std= np.std(list(vertices_with_overlapping_domains.values())[1:])
             self.DomainEnrichment_pvalue= num_network_more_equal_real/num_rand_networks
             if rand_network_std == 0:
                 self.DomainEnrichment_zscore= dummy_value
             else:
-                self.DomainEnrichment_zscore= (count_in_real_network - rand_network_mean) / rand_network_std
+                self.DomainEnrichment_zscore= (self.vertex_with_domain_in_real_network - rand_network_mean) / rand_network_std
 
 class DomainType(protein_interaction_interfaces.DomainType):
     def __init__(self, domain_id):
@@ -315,7 +317,7 @@ class InterfaceHandling(protein_interaction_interfaces.InterfaceHandling):
             slim_id= tab[0]
             slim_type_inst= SLiMType(slim_id)
             slim_type_inst.name= tab[1]
-            slim_type_inst.regex= tab[4] #.replace('"', '')
+            slim_type_inst.regex= tab[4].replace('"', '')
             slim_type_inst.probability= str(tab[5])
             self.slim_types_dict[slim_id] = slim_type_inst
         print(f'{len(self.slim_types_dict)} SLiM types read in.')
