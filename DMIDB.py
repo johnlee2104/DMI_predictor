@@ -123,6 +123,7 @@ class SLiMMatch:
         self.DomainEnrichment_pvalue= None
         self.DomainEnrichment_zscore= None
         self.vertex_with_domain_in_real_network= None
+        self.partners_with_domain_in_real_network= set()
 
     def get_slim_match_features(self, domain_type_list= None):
         defined_positions_url= 'http://slim.icr.ac.uk/restapi/functions/defined_positions?'
@@ -208,11 +209,13 @@ class SLiMMatch:
                             partner_domains= set(partner.domain_matches_dict.keys())
                             if domains.intersection(partner_domains) == domains: # strict filtering because the partner MUST have the same domain interface i.e. 1 domain or 2 domains in one protein
                                 count += 1
+                                if network_id == 0:
+                                    self.partners_with_domain_in_real_network.add(partner)
                         vertices_with_overlapping_domains[int(network_id)]= count
                 else: # cases of len(cognate_domains) == 2 -> 2 domains in 2 proteins
                 # Need to find which domain the interaction partner has, and find only those proteins in the real network
                     domains= set()
-                    for domain_intf_obj in cognate_domains:
+                    for domain_intf_obj in domain_match_list:
                         for domain_id in domain_intf_obj.domain_dict.keys():
                             domains.add(domain_id)
                     for network_id, network in self.prot_inst.networks.items():
@@ -221,6 +224,8 @@ class SLiMMatch:
                             partner_domains= set(partner.domain_matches_dict.keys())
                             if any(domains.intersection(partner_domains)): # loose filtering because the partner only needs to have at least oen of the domain interface
                                 count += 1
+                                if network_id == 0:
+                                    self.partners_with_domain_in_real_network.add(partner)
                         vertices_with_overlapping_domains[int(network_id)]= count
             else:
                 domains= set(domain_type_list)
@@ -230,6 +235,8 @@ class SLiMMatch:
                         partner_domains= set(partner.domain_matches_dict.keys())
                         if domains.intersection(partner_domains) == domains: # strict filtering because the partner MUST have the same domain interface as that input domain list i.e. 1 domain or 2 domains in one protein
                             count += 1
+                            if network_id == 0:
+                                self.partners_with_domain_in_real_network.add(partner)
                     vertices_with_overlapping_domains[int(network_id)]= count
             self.vertex_with_domain_in_real_network= vertices_with_overlapping_domains[0] # no. of vertices with domain in real network
             # evaluation of domain enrichment in random networks
@@ -237,8 +244,8 @@ class SLiMMatch:
             rand_network_mean= np.mean(list(vertices_with_overlapping_domains.values())[1:])
             rand_network_std= np.std(list(vertices_with_overlapping_domains.values())[1:])
             self.DomainEnrichment_pvalue= num_network_more_equal_real/num_rand_networks
-            if rand_network_std == 0:
-                self.DomainEnrichment_zscore= dummy_value
+            if rand_network_std == 0: # take the absolute difference instead between the real network and the mean
+                self.DomainEnrichment_zscore= self.vertex_with_domain_in_real_network - rand_network_mean
             else:
                 self.DomainEnrichment_zscore= (self.vertex_with_domain_in_real_network - rand_network_mean) / rand_network_std
 
@@ -264,6 +271,7 @@ class DMIMatch:
         self.slim_match = slim_match
         self.domain_interface_match = domain_interface_match
         self.score = None
+        self.missing_feature= None
 
 ### Rework this part
 class InterfaceHandling(protein_interaction_interfaces.InterfaceHandling):
@@ -340,15 +348,15 @@ class InterfaceHandling(protein_interaction_interfaces.InterfaceHandling):
                     self.dmi_types_dict[slim_id] = DMI_type_inst
                 if (len(tab) < 11) or (len(tab) > 10 and tab[11] == '') :
                     domain_interface_inst= DomainInterface()
-                    domain_interface_inst.domain_dict[domain_id]= domain_count
+                    domain_interface_inst.domain_dict[domain_id]= int(domain_count)
                     self.dmi_types_dict[slim_id].domain_interfaces.append(domain_interface_inst)
                     self.domain_types_dict[domain_id].dmi_types.append(self.dmi_types_dict[slim_id])
                 elif (len(tab) > 7) & (tab[11] == '1'):
                     domain_id2= tab[7]
                     domain_count2= tab[10]
                     domain_interface_inst= DomainInterface()
-                    domain_interface_inst.domain_dict[domain_id] = domain_count
-                    domain_interface_inst.domain_dict[domain_id2] = domain_count2
+                    domain_interface_inst.domain_dict[domain_id] = int(domain_count)
+                    domain_interface_inst.domain_dict[domain_id2] = int(domain_count2)
                     if domain_id2 not in self.domain_types_dict:
                         self.domain_types_dict[domain_id2] = DomainType(domain_id2)
                     self.dmi_types_dict[slim_id].domain_interfaces.append(domain_interface_inst)
@@ -404,7 +412,7 @@ class InterfaceHandling(protein_interaction_interfaces.InterfaceHandling):
                                     self.proteins_dict[protein_id].domain_matches_dict[domain_id].append(domain_match_inst)
                     print(f'{protein_id} has {len(self.proteins_dict[protein_id].domain_matches_dict)} domain types match.')
 
-    def read_in_networks(self):
+    def read_in_networks(self, prot_set= None):
         if self.network_path == self.features_path:
             file_names= [file_name for file_name in glob.glob(self.features_path + '/Protein_networks/*')]
         else:
@@ -412,19 +420,23 @@ class InterfaceHandling(protein_interaction_interfaces.InterfaceHandling):
         for file_name in file_names:
             prot_file= file_name.split('/')[-1]
             prot_id= prot_file.split('_')[0]
-            with open(file_name,'r') as file:
-                lines = [line.strip() for line in file.readlines()]
-            for line in lines[1:]:
-                tabs= line.split('\t')
-                self.proteins_dict[prot_id].networks[int(tabs[0])]= []
-                if '|' in tabs[1]:
-                    partners= tabs[1].split('|')
-                    for partner in partners:
-                        self.proteins_dict[prot_id].networks[int(tabs[0])].append(self.proteins_dict[partner]) # network partner saved as prot inst
-                else:
-                    self.proteins_dict[prot_id].networks[int(tabs[0])].append(self.proteins_dict[tabs[1]])
-                self.proteins_dict[prot_id].network_degree= len(self.proteins_dict[prot_id].networks[0])
-            print(f'Network file of {prot_id} read in.')
+            if prot_set != None:
+                if prot_id not in prot_set:
+                    continue
+            if prot_id in self.proteins_dict:
+                with open(file_name,'r') as file:
+                    lines = [line.strip() for line in file.readlines()]
+                for line in lines[1:]:
+                    tabs= line.split('\t')
+                    self.proteins_dict[prot_id].networks[int(tabs[0])]= []
+                    if '|' in tabs[1]:
+                        partners= tabs[1].split('|')
+                        for partner in partners:
+                            self.proteins_dict[prot_id].networks[int(tabs[0])].append(self.proteins_dict[partner]) # network partner saved as prot inst
+                    else:
+                        self.proteins_dict[prot_id].networks[int(tabs[0])].append(self.proteins_dict[tabs[1]])
+                    self.proteins_dict[prot_id].network_degree= len(self.proteins_dict[prot_id].networks[0])
+                print(f'Network file of {prot_id} read in.')
 
     def create_slim_matches_all_proteins(self):
         for prot_id, prot_inst in self.proteins_dict.items():

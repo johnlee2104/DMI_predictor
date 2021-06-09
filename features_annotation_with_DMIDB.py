@@ -10,6 +10,16 @@ Original PRS and RRS file should contain only proteins, SLiM and domain annotati
 and without SLiM features. Using the annotate_slim_features will annotate SLiM features into the PRS and RRS. """
 """ dir_name specifies the path where protein features are stored in separate subdirectories."""
 
+def get_proteins(input_list):
+    protein_set= set()
+    for input_file in input_list:
+        df= pd.read_csv(input_file, sep= '\t', index_col= 0)
+        for prot in df.interactorElm.to_list():
+            protein_set.add(prot)
+        for prot in df.interactorDomain.to_list():
+            protein_set.add(prot)
+    return protein_set
+
 def annotate_slim_domain_features_on_dataset(input_list):
     for input_file in input_list:
         df= pd.read_csv(input_file, sep= '\t', index_col= 0)
@@ -18,32 +28,60 @@ def annotate_slim_domain_features_on_dataset(input_list):
             if col not in df.columns:
                 df[col]= float('NaN')
         for ind, row in df.iterrows():
-            if (pd.notna(row['qfo_RLC'])) & (type(row['qfo_RLC']) == float): # this is when I rerun the code because some RLC values are not calculated due to server not responding
-                continue
-            if ind % 50 == 0:
+            if ind % 40 == 0:
                 print('Sleeping for 10 seconds to not flood the SLiM server...')
                 time.sleep(10)
-            slim_protein= row['interactorElm']
-            slim_id= row['Accession']
-            start, end= row['ElmMatch'].split('-')
-            start= int(start)
-            end= int(end)
-            pattern= row['Pattern'].replace('"', '')
-            slim_match_inst= SLiMMatch(InterfaceHandling.dmi_types_dict[slim_id], InterfaceHandling.slim_types_dict[slim_id], InterfaceHandling.proteins_dict[slim_protein], start, end, pattern)
-            if pd.notna(row['DomainID2']):
-                slim_match_inst.get_slim_match_features(domain_type_list= [row['DomainID1'], row['DomainID2']])
+            if pd.notna(row['qfo_RLC']):
+                try: # this is when I rerun the code because some RLC values are not calculated due to server not responding
+                    float(row['qfo_RLC'])
+                    continue
+                except:
+                    print('Recalculating conservation scores...')
+                    slim_protein= row['interactorElm']
+                    slim_id= row['Accession']
+                    start, end= row['ElmMatch'].split('-')
+                    start= int(start)
+                    end= int(end)
+                    pattern= row['Pattern'].replace('"', '')
+                    slim_match_inst= SLiMMatch(InterfaceHandling.dmi_types_dict[slim_id], InterfaceHandling.slim_types_dict[slim_id], InterfaceHandling.proteins_dict[slim_protein], start, end, pattern)
+                    if pd.notna(row['DomainID2']):
+                        slim_match_inst.get_slim_match_features(domain_type_list= [row['DomainID1'], row['DomainID2']])
+                    else:
+                        slim_match_inst.get_slim_match_features(domain_type_list= [row['DomainID1']])
+                    features_dict= slim_match_inst.__dict__
+                    for feature in list(features_dict)[6:20]:
+                        if features_dict[feature] != None:
+                            df.loc[ind, feature]= features_dict[feature]
+                    df.loc[ind, 'TotalNetworkDegree']= InterfaceHandling.proteins_dict[slim_protein].network_degree
+                    if pd.isna(row['DomainFreqbyProtein1']):
+                        df.loc[ind, 'DomainFreqbyProtein1']=  InterfaceHandling.domain_types_dict[row['DomainID1']].DomainFreqbyProtein
+                        df.loc[ind, 'DomainFreqinProteome1']=  InterfaceHandling.domain_types_dict[row['DomainID1']].DomainFreqinProteome
+                    if pd.notna(row['DomainID2']):
+                        df.loc[ind, 'DomainFreqbyProtein2']=  InterfaceHandling.domain_types_dict[row['DomainID2']].DomainFreqbyProtein
+                        df.loc[ind, 'DomainFreqinProteome2']=  InterfaceHandling.domain_types_dict[row['DomainID2']].DomainFreqinProteome
             else:
-                slim_match_inst.get_slim_match_features(domain_type_list= [row['DomainID1']])
-            features_dict= slim_match_inst.__dict__
-            for feature in list(features_dict)[6:]:
-                if features_dict[feature] != None:
-                    df.loc[ind, feature]= features_dict[feature]
-            df.loc[ind, 'TotalNetworkDegree']= InterfaceHandling.proteins_dict[slim_protein].network_degree
-            # df.loc[ind, 'DomainFreqbyProtein1']=  InterfaceHandling.domain_types_dict[row['DomainID1']].DomainFreqbyProtein
-            # df.loc[ind, 'DomainFreqinProteome1']=  InterfaceHandling.domain_types_dict[row['DomainID1']].DomainFreqinProteome
-            # if pd.notna(row['DomainID2']):
-            #     df.loc[ind, 'DomainFreqbyProtein2']=  InterfaceHandling.domain_types_dict[row['DomainID2']].DomainFreqbyProtein
-            #     df.loc[ind, 'DomainFreqinProteome2']=  InterfaceHandling.domain_types_dict[row['DomainID2']].DomainFreqinProteome
+                slim_protein= row['interactorElm']
+                slim_id= row['Accession']
+                start, end= row['ElmMatch'].split('-')
+                start= int(start)
+                end= int(end)
+                pattern= row['Pattern'].replace('"', '')
+                slim_match_inst= SLiMMatch(InterfaceHandling.dmi_types_dict[slim_id], InterfaceHandling.slim_types_dict[slim_id], InterfaceHandling.proteins_dict[slim_protein], start, end, pattern)
+                if pd.notna(row['DomainID2']):
+                    slim_match_inst.get_slim_match_features(domain_type_list= [row['DomainID1'], row['DomainID2']])
+                else:
+                    slim_match_inst.get_slim_match_features(domain_type_list= [row['DomainID1']])
+                features_dict= slim_match_inst.__dict__
+                for feature in list(features_dict)[6:20]:
+                    if features_dict[feature] != None:
+                        df.loc[ind, feature]= features_dict[feature]
+                df.loc[ind, 'TotalNetworkDegree']= InterfaceHandling.proteins_dict[slim_protein].network_degree
+                if pd.isna(row['DomainFreqbyProtein1']):
+                    df.loc[ind, 'DomainFreqbyProtein1']=  InterfaceHandling.domain_types_dict[row['DomainID1']].DomainFreqbyProtein
+                    df.loc[ind, 'DomainFreqinProteome1']=  InterfaceHandling.domain_types_dict[row['DomainID1']].DomainFreqinProteome
+                if pd.notna(row['DomainID2']):
+                    df.loc[ind, 'DomainFreqbyProtein2']=  InterfaceHandling.domain_types_dict[row['DomainID2']].DomainFreqbyProtein
+                    df.loc[ind, 'DomainFreqinProteome2']=  InterfaceHandling.domain_types_dict[row['DomainID2']].DomainFreqinProteome
 
         columns= ['Accession', 'Elm', 'Regex', 'Pattern', 'Probability', 'interactorElm', 'ElmMatch', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'TotalNetworkDegree', 'vertex_with_domain_in_real_network', 'interactorDomain', 'DomainID1', 'DomainMatch1', 'DomainMatchEvalue1', 'DomainFreqbyProtein1', 'DomainFreqinProteome1', 'DomainID2', 'DomainMatch2', 'DomainMatchEvalue2', 'DomainFreqbyProtein2', 'DomainFreqinProteome2', 'DMISource']
         df= df[columns]
@@ -71,7 +109,8 @@ if __name__== '__main__':
     InterfaceHandling.read_in_DMI_types()
     InterfaceHandling.read_in_domain_types()
     InterfaceHandling.read_in_domain_matches()
-    InterfaceHandling.read_in_networks()
+    protein_set= get_proteins(input_list)
+    InterfaceHandling.read_in_networks(prot_set= protein_set)
     InterfaceHandling.read_in_features_all_proteins()
     annotate_slim_domain_features_on_dataset(input_list)
 

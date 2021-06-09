@@ -123,6 +123,7 @@ def make_precision_recall_curve(split_fit_outputs):
         prc= plot_precision_recall_curve(rf, X_test, y_test, ax= ax, name= f'{RRS_version}_{i+1}')
         interp_prec= np.interp(mean_recall, np.flipud(prc.recall), np.flipud(prc.precision))
         interp_prec[0]= 1.0
+        interp_prec[-1]= len(y_test[y_test == 1])/ len(y_test)
         precisions.append(interp_prec)
         aps.append(prc.average_precision)
 
@@ -134,7 +135,7 @@ def make_precision_recall_curve(split_fit_outputs):
 
     # plot avg PR curve across triplicates
     mean_precision= np.mean(precisions, axis= 0)
-    mean_precision[-1]= 0.5
+    # mean_precision[-1]= 0.5
     std_precision= np.std(precisions, axis= 0)
     mean_ap= np.mean(aps)
 
@@ -206,7 +207,7 @@ def make_feature_importance_plot(split_fit_outputs, exclude_feature= None):
                 xlim= None
             else:
                 features= all_features_renamed
-                xlim= [0, 0.14]
+                xlim= [0, 0.16]
             feat_imp_df= pd.DataFrame(data= {'Features': features, f'{RRS_version}_{i+1}': rf.feature_importances_})
         else:
             feat_imp_df= pd.concat([feat_imp_df, pd.Series(rf.feature_importances_, name= f'{RRS_version}_{i+1}')], axis= 1)

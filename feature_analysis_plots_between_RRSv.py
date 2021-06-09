@@ -4,8 +4,8 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-all_features= ['Probability', 'IUPredLong', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'DomainFreqbyProtein1', 'DomainFreqinProteome1']
-all_columns= ['Accession', 'Elm', 'Regex', 'Pattern', 'Probability', 'interactorElm', 'ElmMatch', 'IUPredLong', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'TotalNetworkDegree', 'vertex_with_domain_in_real_network', 'interactorDomain', 'DomainID1', 'DomainMatch1', 'DomainMatchEvalue1', 'DomainFreqbyProtein1', 'DomainFreqinProteome1', 'DomainID2', 'DomainMatch2', 'DomainMatchEvalue2', 'DomainFreqbyProtein2', 'DomainFreqinProteome2', 'DMISource']
+all_features= ['Probability', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'DomainFreqbyProtein1', 'DomainFreqinProteome1']
+all_columns= ['Accession', 'Elm', 'Regex', 'Pattern', 'Probability', 'interactorElm', 'ElmMatch', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'TotalNetworkDegree', 'vertex_with_domain_in_real_network', 'interactorDomain', 'DomainID1', 'DomainMatch1', 'DomainMatchEvalue1', 'DomainFreqbyProtein1', 'DomainFreqinProteome1', 'DomainID2', 'DomainMatch2', 'DomainMatchEvalue2', 'DomainFreqbyProtein2', 'DomainFreqinProteome2', 'DMISource']
 
 DMI_count_df= pd.DataFrame(data= {'Class': ['CLV', 'DEG', 'DOC', 'LIG', 'MOD', 'TRG'], 'ElmDB': [11, 25, 31, 165, 37, 22]})
 
@@ -101,6 +101,26 @@ def make_feature_violin_plots(PRS_RRSvs_list):
     # plt.grid(alpha= 0.2)
     plt.savefig(plot_path + f'/IUPredShort_vp_PRS_RRSv1_2_3_4.pdf', bbox_inches= 'tight')
     print(f'IUPredShort vp of PRS and RRSv1_2_3_4 saved in {plot_path}.')
+    plt.close()
+
+    plt.figure(figsize= (6,6))
+    plt.violinplot([df['metazoa_RLC'] for df in PRS_RRSvs_list], showmedians= True, widths= 0.8)
+    plt.xticks([i + 1 for i in range(len(PRS_RRSvs_list))], ['PRS', 'RRSv1', 'RRSv2', 'RRSv3', 'RRSv4'])
+    plt.title(f'metazoa_RLC distribution in PRS and RRSv1,2,3,4', fontsize= title_fontsize)
+    plt.ylabel('metazoa_RLC', fontsize= fontsize)
+    # plt.grid(alpha= 0.2)
+    plt.savefig(plot_path + f'/metazoa_RLC_vp_PRS_RRSv1_2_3_4.pdf', bbox_inches= 'tight')
+    print(f'metazoa_RLC vp of PRS and RRSv1_2_3_4 saved in {plot_path}.')
+    plt.close()
+
+    plt.figure(figsize= (6,6))
+    plt.violinplot([df['vertebrates_RLC'] for df in PRS_RRSvs_list], showmedians= True, widths= 0.8)
+    plt.xticks([i + 1 for i in range(len(PRS_RRSvs_list))], ['PRS', 'RRSv1', 'RRSv2', 'RRSv3', 'RRSv4'])
+    plt.title(f'vertebrates_RLC distribution in PRS and RRSv1,2,3,4', fontsize= title_fontsize)
+    plt.ylabel('vertebrates_RLC', fontsize= fontsize)
+    # plt.grid(alpha= 0.2)
+    plt.savefig(plot_path + f'/vertebrates_RLC_vp_PRS_RRSv1_2_3_4.pdf', bbox_inches= 'tight')
+    print(f'vertebrates_RLC vp of PRS and RRSv1_2_3_4 saved in {plot_path}.')
     plt.close()
 
 if __name__ == '__main__':

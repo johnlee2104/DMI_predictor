@@ -58,7 +58,7 @@ def make_stacked_PR_ROC_curves(RRS_paths): # input as list of RRS version paths
             mean_precision.append(float(tabs[1]))
             std_precision.append(float(tabs[2]))
 
-        ax.plot(mean_recall, mean_precision, label= f'{RRS_version} mean AUC = {mean_auc:.2f}', color= c)
+        ax.plot(mean_recall, mean_precision, label= f'{RRS_version} mean AP = {mean_AP:.2f}', color= c)
         ax.fill_between(mean_recall, [(prec - std) for prec, std in zip(mean_precision, std_precision)], [(prec + std) for prec, std in zip(mean_precision, std_precision)], color= c, alpha= 0.3)
     ax.set(xlim=[-0.05, 1.05], ylim= [0.45, 1.05])
     ax.legend(loc= 'lower left')
