@@ -3,34 +3,39 @@
 
 from pymol import cmd
 from pymol import stored
+import sys
 
-AF2_path = '/Users/luck/IMB/projects/DMI_predictor/AF2/'
-PRS_path = AF2_path + 'DMI_structure_PRS/'
+run_id = sys.argv[1]
 
-file_to_run = 'AF2_DMI_PRS_annotation.tsv'
+PRS_path = '/Volumes/imb-luckgr/projects/dmi_predictor/DMI_AF2_PRS/'
+DMI_path = PRS_path + 'DMI_types/'
+run_path = PRS_path + 'run' + run_id + '/'
 
-file1 = open(PRS_path + file_to_run,'r')
+file_to_run = 'run' + run_id + '_DMI_type_structure_annotation.txt'
+
+file1 = open(run_path + file_to_run,'r')
 entries = file1.readlines()
 file1.close()
 
-target = open(PRS_path + 'output_' + file_to_run,'w')
+target = open(run_path + 'run' + run_id + '_RMSD_calculation.txt','w')
 target.write('dmi_name\tRMSD_domain\tRMSD_peptide\tpdb_id\tchain_domain\tchain_motif\tdomain_start\t' + \
              'domain_end\tmotif_start\tmotif_end\tnum_align_atoms_domain\talign_score_domain\tnum_align_resi_domain\n')
 
 for line in entries[1:]:
     tab_list = str.split(line[:-1],'\t')
     DMIname = tab_list[0]
-    pdb_id = tab_list[1]
-    chain_domain = tab_list[2]
-    chain_motif = tab_list[3]
-    domain_start = tab_list[4]
-    domain_end = tab_list[5]
-    motif_start = tab_list[6]
-    motif_end = tab_list[7]
+    pdb_id = tab_list[4]
+    chain_domain = tab_list[10]
+    chain_motif = tab_list[9]
+    domain_start = tab_list[13]
+    domain_end = tab_list[14]
+    motif_start = tab_list[11]
+    motif_end = tab_list[12]
+    print(DMIname, pdb_id)
 
     # load the 'real' structure and the predicted structure into pymol
-    cmd.load(PRS_path + DMIname + '/' + pdb_id + '.pdb','real')
-    cmd.load(PRS_path + DMIname + '/AF2_' + pdb_id + '.pdb','AF2')
+    cmd.load(DMI_path + DMIname + '/' + pdb_id + '.cif','real')
+    cmd.load(run_path + 'run' + run_id + '_' + DMIname + '_' + pdb_id + '.result/' + pdb_id + '_unrelaxed_model_1.pdb','AF2')
 
     # copy the relevant residues from the real and AF2 structure into new objects for further manipulation
     cmd.create('real_wk', f'(real and chain {chain_domain} and resi {domain_start}-{domain_end}) or ' + \
@@ -70,7 +75,7 @@ for line in entries[1:]:
 
     # calculate the RMSD on the peptides without making a fit first, but based on the fit from superimposing the domains
     RMSD_peptide = cmd.rms_cur(f'AF2_wk and chain {chain_motif}', f'real_wk and chain {chain_motif}',\
-                                mobile_state=1,target_state=1,matchmaker=0,cycles=0,object='peptide_super')
+                                mobile_state=1,target_state=1,matchmaker=4,cycles=0,object='peptide_super')
 
     # write out the results
     target.write('\t'.join([DMIname,str(RMSD_domain),str(RMSD_peptide),pdb_id,chain_domain,chain_motif,domain_start,domain_end,\
@@ -85,9 +90,11 @@ for line in entries[1:]:
     cmd.color('tv_orange','AF2_wk')
     cmd.color('atomic',f'AF2_wk and chain {chain_motif} and not elem C')
     cmd.color('atomic',f'real_wk and chain {chain_motif} and not elem C')
-    cmd.png(PRS_path + DMIname + '/' + DMIname + '_AF2_' + pdb_id + '_superimpose.png',ray=1)
+    cmd.png(run_path + 'run' + run_id + '_' + DMIname + '_' + pdb_id + '.result/' + DMIname + '_AF2_' + pdb_id + '_superimpose.png',ray=1)
 
     # save this pymol session
-    cmd.save(PRS_path + DMIname + '/' + DMIname + '_AF2_' + pdb_id + '_superimpose.pse')
+    cmd.save(run_path + 'run' + run_id + '_' + DMIname + '_' + pdb_id + '.result/' + DMIname + '_AF2_' + pdb_id + '_superimpose.pse')
+
+    cmd.reinitialize()
 
 target.close()
