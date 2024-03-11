@@ -36,7 +36,7 @@ def preprocessing_dataset(PRS_input, RRS_input): # takes the PRS and RRS, concat
     return df, X, y
 
 def split_fit_rf(X, y, exclude_feature= None): # features to be dropped saved as list
-    rf= RandomForestClassifier(n_estimators= 1000, oob_score= True, verbose= True, n_jobs= -1)
+    rf= RandomForestClassifier(n_estimators= 1000, oob_score= True, verbose= True, n_jobs= -1) # Tested the model again on 11.03.2024 and found that it only works if n_jobs is set to 1. -1 makes use of all CPU cores but somehow it does not work on my Macbook.
 
     if exclude_feature != None:
         X= X.drop(labels= exclude_feature, axis= 1)
