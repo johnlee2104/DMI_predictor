@@ -1,3 +1,6 @@
+# This script automates the exploratory analysis of the PRS and the individual replicates of a version of RRS.
+# Author: Chop Yan Lee
+
 import sys
 import pandas as pd
 import seaborn as sns
@@ -15,7 +18,18 @@ fontsize= 12
 title_fontsize= 14
 sns.set_style('darkgrid')
 
-def preprocessing_dataset(PRS_input, RRS_input_list): # takes the PRS and RRS, concatenate them and preprocessing the NaNs and dummy value.
+def preprocessing_dataset(PRS_input, RRS_input_list): 
+    """
+    Preprocess the NaNs and dummy values in the PRS and RRS replicates. Rows with NaN are removed. Dummy value (88888) is replaced with the median of the feature in the dataset, i.e. median of the feature in PRS or median in RRS. All RRS replicates are concatenated into one single RRS dataframe.
+    
+    Args:
+        PRS_path (str): Absolute path to the PRS dataset
+        RRS_input_list (list of str): List of absolute path to the individual replicates of an RRS version
+
+    Returns:
+        PRS (pd.DataFrame): The processed PRS
+        RRS (pd.DataFrame): The processed RRS (all triplicates concatenated into one RRS dataframe)
+    """
     PRS= pd.read_csv(PRS_input, sep= '\t', index_col= 0)
     PRS.replace(88888, PRS.DomainEnrichment_zscore.median(), inplace= True)
     RRS= pd.DataFrame(columns= PRS.columns)
@@ -33,6 +47,13 @@ def preprocessing_dataset(PRS_input, RRS_input_list): # takes the PRS and RRS, c
     return PRS, RRS
 
 def make_DMI_fraction_plot(PRS, RRS):
+    """
+    Plot the representation of the DMI types in each ELM classes (DEG, DOC, etc.) in the PRS and RRS using the fraction of DMI type in each ELM classes. The plot is saved as pdf file.
+
+    Args:
+        PRS (pd.DataFrame): The processed PRS from the function preprocessing_dataset
+        RRS (pd.DataFrame): The processed RRS (all triplicates concatenated into one RRS dataframe) from the function preprocessing_dataset
+    """
     global DMI_count_df
     for i, df in enumerate([PRS, RRS]):
         if i == 0:
@@ -62,7 +83,13 @@ def make_DMI_fraction_plot(PRS, RRS):
     plt.close()
 
 def make_feature_violin_plots(PRS, RRS):
+    """
+    Plot the distribution of different features in the PRS and RRS using violinplots. The plots are saved as pdf file.
 
+    Args:
+        PRS (pd.DataFrame): The processed PRS from the function preprocessing_dataset
+        RRS (pd.DataFrame): The processed RRS (all triplicates concatenated into one RRS dataframe) from the function preprocessing_dataset
+    """
     fig, ax= plt.subplots(figsize= (10, 6))
 
     PRS_data= [PRS[feature] for feature in all_features_reordered[1:-3]]
@@ -190,6 +217,13 @@ def make_feature_violin_plots(PRS, RRS):
     plt.close()
 
 def make_correlation_heatmap(PRS, RRS):
+    """
+    Plot the correlation matrix of all features and labels in the PRS and RRS. The plot is saved as pdf file.
+
+    Args:
+        PRS (pd.DataFrame): The processed PRS from the function preprocessing_dataset
+        RRS (pd.DataFrame): The processed RRS (all triplicates concatenated into one RRS dataframe) from the function preprocessing_dataset
+    """
     PRS['label']= 1.0
     RRS['label']= 0.0
     PRS_RRS_features= pd.concat([PRS, RRS], axis= 0)

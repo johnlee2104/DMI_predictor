@@ -1,3 +1,6 @@
+# This script automates the exploratory analysis of the PRS and the combined replicates of different version of RRS.
+# Author: Chop Yan Lee
+
 import sys
 import pandas as pd
 import numpy as np
@@ -13,7 +16,16 @@ fontsize= 12
 title_fontsize= 14
 sns.set_style('darkgrid')
 
-def preprocessing_dataset(input): # takes the PRS and RRS, concatenate them and preprocessing the NaNs and dummy value.
+def preprocessing_dataset(input):
+    """
+    Preprocess the NaNs and dummy values in the PRS and RRS. Rows with NaN are removed. Dummy value (88888) is replaced with the median of the feature in the dataset, i.e. median of the feature in PRS or median in RRS. All RRS replicates of an RRS versions are concatenated into one single RRS dataframe.
+    
+    Args:
+        input (str or list of str): Absolute path to the PRS dataset or a list containing the absolute paths to the replicates of an RRS version
+
+    Returns:
+        df (pd.DataFrame): The processed dataframe
+    """
     if type(input) == list:
         df= pd.DataFrame(columns= all_columns)
         for RRS in input:
@@ -31,6 +43,12 @@ def preprocessing_dataset(input): # takes the PRS and RRS, concatenate them and 
     return df
 
 def make_DMI_fraction_plot(PRS_RRSvs_list):
+    """
+    Plot the representation of the DMI types in each ELM classes (DEG, DOC, etc.) in the PRS and RRS using the fraction of DMI type in each ELM classes. The plot is saved as pdf file.
+
+    Args:
+        PRS_RRSvs_list (list of pd.DataFrame): The processed PRS and RRS replicates from the function preprocessing_dataset. Note: the preprocessed PRS must be the first dataframe in the list
+    """
     global DMI_count_df
     for i, df in enumerate(PRS_RRSvs_list):
         if i == 0:
@@ -61,7 +79,12 @@ def make_DMI_fraction_plot(PRS_RRSvs_list):
     plt.close()
 
 def make_feature_violin_plots(PRS_RRSvs_list):
+    """
+    Plot the distribution of different features in the PRS and RRS using violinplots. The plots are saved as pdf file.
 
+    Args:
+        PRS_RRSvs_list (list of pd.DataFrame): The processed PRS and RRS replicates from the function preprocessing_dataset. Note: the preprocessed PRS must be the first dataframe in the list
+    """
     plt.figure(figsize= (6,6))
     plt.violinplot([-np.log10(df['Probability']) for df in PRS_RRSvs_list], showmedians= True, widths= 0.8)
     plt.xticks([i + 1 for i in range(len(PRS_RRSvs_list))], ['PRS', 'RRSv1', 'RRSv2', 'RRSv3', 'RRSv4'])

@@ -1,3 +1,6 @@
+# This script uses the RRSFormation class from RRSFormation.py to form RRSv4. RRSv4 involves sampling a fixed number of DMI instances irrespective of DMI types from PPIs randomized using all human proteins from SwissProt.
+# Author: Chop Yan Lee
+
 # For RRSv3 and 4, make sure to only sample from proteins with network information.
 # import protein_interaction_interfaces
 from DMIDB import *
@@ -6,11 +9,25 @@ import RRSFormation
 import sys, random, itertools
 
 class RRSv4Formation(RRSFormation.RRSFormation):
+    """
+    Represents random reference set version 4
+
+    Inherits from RRSFormation.RRSFormation
+    """
+
     def __init__(self, RRS_version):
+        """
+        Instantiate RRS
+
+        Args:
+            RRS_version (str): a version name given to RRS, e.g. RRSv1_1_20210427 as RRS version 1, triplicate 1 and date of generating the RRS
+        """
         super().__init__(RRS_version)
 
     def make_random_protein_pairs_with_network(self):
-
+        """
+        Generate random PPI using only proteins with network information
+        """
         proteins_with_networks= set()
 
         file_names= [file_name for file_name in glob.glob(InterfaceHandling.network_path + '/*')]
@@ -45,7 +62,12 @@ class RRSv4Formation(RRSFormation.RRSFormation):
         print(f'Total proteins sampled and paired as protein pair: {len(InterfaceHandling.proteins_dict)}.')
         
     def select_RRS_instances(self, number_instances):
+        """
+        Randomly sample a fixed number of instances irrespective of DMI types and append the sampled instances into self.RRS_instances
 
+        Args:
+            number_instances (int): Number of RRS instances to be sampled for each DMI type
+        """
         sampled_dmi_matches= []
 
         print(f'Sampling DMI matches from {len(InterfaceHandling.protein_pairs_dict)} protein pairs...')

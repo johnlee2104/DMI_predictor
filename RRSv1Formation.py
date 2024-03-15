@@ -1,3 +1,6 @@
+# This script uses the RRSFormation class from RRSFormation.py to form RRSv1. RRSv1 involves sampling a fixed number of DMI instances per DMI type from PPIs randomized using proteins from the PRS.
+# Author: Chop Yan Lee
+
 # import protein_interaction_interfaces
 from DMIDB import *
 import DMIDB
@@ -5,11 +8,25 @@ import RRSFormation
 import sys, random, itertools
 
 class RRSv1Formation(RRSFormation.RRSFormation):
+    """
+    Represents random reference set version 1
+
+    Inherits from RRSFormation.RRSFormation
+    """
+
     def __init__(self, RRS_version):
+        """
+        Instantiate RRS
+
+        Args:
+            RRS_version (str): a version name given to RRS, e.g. RRSv1_1_20210427 as RRS version 1, triplicate 1 and date of generating the RRS
+        """
         super().__init__(RRS_version)
 
     def make_random_protein_pairs(self):
-
+        """
+        Generate random protein pairs using proteins from InterfaceHandling.proteins_dict and save the random pairs as ProteinPair instances. Additionally checks if the randomized protein pairs coincide with a known PPI, in which case the randomized protein pair is excluded.
+        """
         print('Generating random pairs of proteins...')
         random_protein_pair= [tuple(sorted(pp)) for pp in itertools.combinations(list(InterfaceHandling.proteins_dict), 2)]
         print(f'{len(random_protein_pair)} combinations of protein pairs generated...')
@@ -24,6 +41,12 @@ class RRSv1Formation(RRSFormation.RRSFormation):
         print(f'{len(InterfaceHandling.protein_pairs_dict)} ProteinPair instances created.')
 
     def select_RRS_instances(self, number_instances):
+        """
+        Randomly sample a fixed number of instances per DMI type and append the sampled instances into self.RRS_instances
+
+        Args:
+            number_instances (int): Number of RRS instances to be sampled for each DMI type
+        """
         number_instances= int(number_instances)
         for slim_id in InterfaceHandling.dmi_types_dict.keys():
             dmi_matches= []
@@ -52,7 +75,7 @@ if __name__ == '__main__':
     pfam_domain_matches_json_file= sys.argv[8]
     features_path= sys.argv[9]
     number_instances= sys.argv[10]
-    RRS_version= list(sys.argv[11:])
+    RRS_version= list(sys.argv[11:]) # three file names provided for the triplicates to be generated
 
     InterfaceHandling= DMIDB.InterfaceHandling(prot_path, slim_type_file, dmi_type_file, smart_domain_types_file, pfam_domain_types_file, smart_domain_matches_json_file, pfam_domain_matches_json_file, features_path, PPI_file= PPI_file)
     InterfaceHandling.read_in_proteins()

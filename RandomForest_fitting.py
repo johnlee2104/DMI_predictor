@@ -1,3 +1,6 @@
+# This script automates the fitting of RF models to PRS and specified RRS, as well as the analysis and saving of the fitted models.
+# Author: Chop Yan Lee
+
 import sys
 import pandas as pd
 import numpy as np
@@ -5,7 +8,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, plot_confusion_matrix, plot_roc_curve, plot_precision_recall_curve, f1_score
+from sklearn.metrics import accuracy_score, classification_report, plot_confusion_matrix, plot_roc_curve, plot_precision_recall_curve, f1_score
 from sklearn.model_selection import cross_val_score
 from sklearn.tree import plot_tree
 from joblib import dump, load
@@ -17,7 +20,19 @@ fontsize= 12
 title_fontsize= 14
 sns.set_style('darkgrid')
 
-def preprocessing_dataset(PRS_input, RRS_input): # takes the PRS and RRS, concatenate them and preprocessing the NaNs and dummy value.
+def preprocessing_dataset(PRS_input, RRS_input): 
+    """
+    Takes the PRS and RRS, concatenate them and preprocessing the NaNs and dummy value.
+    
+    Args:
+        PRS_path (str): Absolute path to the PRS dataset
+        RRS_path (str): Absolute path to the RRS dataset
+
+    Returns:
+        df (pd.DataFrame): The concatenated PRS and RRS without the rows with NaNs and dummy value
+        X (pd.DataFrame): The features
+        y (pd.DataFrame): The outcomes
+    """
     PRS= pd.read_csv(PRS_input, sep= '\t', index_col= 0)
     PRS['label']= 1
     RRS= pd.read_csv(RRS_input, sep= '\t', index_col= 0)
@@ -36,7 +51,22 @@ def preprocessing_dataset(PRS_input, RRS_input): # takes the PRS and RRS, concat
     return df, X, y
 
 def split_fit_rf(X, y, exclude_feature= None): # features to be dropped saved as list
-    rf= RandomForestClassifier(n_estimators= 1000, oob_score= True, verbose= True, n_jobs= -1) # Tested the model again on 11.03.2024 and found that it only works if n_jobs is set to 1. -1 makes use of all CPU cores but somehow it does not work on my Macbook.
+    """
+    Split the provided features and outcomes into train and test set and fit a random forest classifier to the train set.
+
+    Args:
+        X (pd.DataFrame): The features
+        y (pd.DataFrame): The outcomes
+        exclude_feature (list of str): Features to be excluded, default None
+
+    Returns:
+        rf (sklearn.ensemble.RandomForestClassifier): The fitted random forest model
+        X_train (pd.DataFrame): The feature values in the train set
+        X_test (pd.DataFrame): The feature values in the test set
+        y_train (pd.DataFrame): The outcome in the train set
+        y_test (pd.DataFrame): The outcome in the test set
+    """
+    rf= RandomForestClassifier(n_estimators= 1000, oob_score= True, verbose= True, n_jobs= 1) # Tested the model again on 11.03.2024 and found that it only works if n_jobs is set to 1. -1 makes use of all CPU cores but somehow it does not work on my computer.
 
     if exclude_feature != None:
         X= X.drop(labels= exclude_feature, axis= 1)
@@ -46,6 +76,12 @@ def split_fit_rf(X, y, exclude_feature= None): # features to be dropped saved as
     return rf, X_train, X_test, y_train, y_test
 
 def make_confusion_matrix(split_fit_outputs):
+    """
+    Plot the confusion matrix of the fitted model applied on the test set using the returned variables from the function split_fit_rf and save the figure as pdf file.
+
+    Args:
+        split_fit_outputs (list): List of three outputs (that correspond to triplicates of each RRS version) from the function split_fit_rf
+    """
     fig, axes= plt.subplots(1,3, figsize= (12, 12))
 
     for i, ele in enumerate(zip(split_fit_outputs, axes)):
@@ -59,7 +95,12 @@ def make_confusion_matrix(split_fit_outputs):
     plt.close()
 
 def make_ROC_curve(split_fit_outputs):
+    """
+    Plot the individual ROC curves in one figure, as well as the averaged ROC curves across triplicates +/- 1 std. in another figure, of the fitted model applied on the test set using the returned variables from the function split_fit_rf and save the figures as pdf file. The average TPR, FPR and their standard deviations are written out in a tsv file.
 
+    Args:
+        split_fit_outputs (list): List of three outputs (that correspond to triplicates of each RRS version) from the function split_fit_rf
+    """
     tprs= []
     aucs= []
     mean_fpr= np.linspace(0, 1, 100)
@@ -111,7 +152,12 @@ def make_ROC_curve(split_fit_outputs):
     print(f'ROC scores saved in {plot_path[:-5]}{RRS_version}_avg_ROC_scores.txt.')
 
 def make_precision_recall_curve(split_fit_outputs):
+    """
+    Plot the individual PR curves in one figure, as well as the averaged PR curves across triplicates +/- 1 std. in another figure, of the fitted model applied on the test set using the returned variables from the function split_fit_rf and save the figures as pdf file. The average recall, precision and their standard deviations are written out in a tsv file.
 
+    Args:
+        split_fit_outputs (list): List of three outputs (that correspond to triplicates of each RRS version) from the function split_fit_rf
+    """
     precisions= []
     aps= []
     mean_recall= np.linspace(0.0, 1.0, 100)
@@ -164,7 +210,12 @@ def make_precision_recall_curve(split_fit_outputs):
     print(f'PR scores saved in {plot_path[:-5]}{RRS_version}_avg_PR_scores.txt.')
 
 def make_cvacc_oob_acc_plot(split_fit_outputs):
+    """
+    Plot a barplot showing the accuracy of models fitted to the individual replicate of an RRS version. The accuracies of models are evaluated using three strategies, 5 fold cross validation accuracy, out-of-bag samples, and accuracy evaluated on the test set. The figure is saved as pdf file.
 
+    Args:
+        split_fit_outputs (list): List of three outputs (that correspond to triplicates of each RRS version) from the function split_fit_rf
+    """
     cvacc= []
     cvacc_std= []
     oob= []
@@ -199,6 +250,13 @@ def make_cvacc_oob_acc_plot(split_fit_outputs):
     plt.close()
 
 def make_feature_importance_plot(split_fit_outputs, exclude_feature= None):
+    """
+    Plot a horizontal barplot showing the feature importance of models fitted to the individual replicate of an RRS version and another horizontal barplot showing the average feature importance of fitted models to all replicates of an RRS version. The feature importance is evaluated using Gini index. The figures are saved as pdf files.
+
+    Args:
+        split_fit_outputs (list): List of three outputs (that correspond to triplicates of each RRS version) from the function split_fit_rf
+        exclude_feature (list of str): Features to be excluded, default None
+    """
     for i, output in enumerate(split_fit_outputs):
         rf, _, _, _, _= output
         if i== 0:
@@ -251,6 +309,12 @@ def make_feature_importance_plot(split_fit_outputs, exclude_feature= None):
     plt.close()
 
 def plot_one_tree(split_fit_outputs):
+    """
+    Plot a single tree (the first tree) in the random forest and save as pdf files.
+
+    Args:
+        split_fit_outputs (list): List of three outputs (that correspond to triplicates of each RRS version) from the function split_fit_rf
+    """
     for i, output in enumerate(split_fit_outputs):
         rf, _, _, _, _= output
         plt.figure(figsize= (16,16))
@@ -260,7 +324,13 @@ def plot_one_tree(split_fit_outputs):
         plt.close()
 
 def write_classification_report(split_fit_outputs, exclude_feature= None):
+    """
+    Write classification report of the fitted model applied on the test set and save as txt file.
 
+    Args:
+        split_fit_outputs (list): List of three outputs (that correspond to triplicates of each RRS version) from the function split_fit_rf
+        exclude_feature (list of str): Features to be excluded, default None
+    """
     if exclude_feature != None:
         if len(exclude_feature) > 10:
             target_name= plot_path[:-5] + f'RF_classification_report_{RRS_version}_with_{"_".join(feat for feat in all_features_renamed if feat not in exclude_feature)}.txt'
@@ -281,7 +351,13 @@ def write_classification_report(split_fit_outputs, exclude_feature= None):
     print(f'Classification report on {RRS_version} saved in {plot_path[:-5]}.')
 
 def write_prediction(split_fit_outputs, df_list):
+    """
+    Write out the prediction of the fitted model on the test set as tsv file.
 
+    Args:
+        split_fit_outputs (list): List of three outputs (that correspond to triplicates of each RRS version) from the function split_fit_rf
+        df_list (list of pd.DataFrame): List of concatenated PRS and RRS replicate that have been previously preprocessed
+    """
     for i, ele in enumerate(zip(split_fit_outputs, df_list)):
         output, df= ele
         rf, X_train, X_test, y_train, y_test= output
@@ -293,7 +369,12 @@ def write_prediction(split_fit_outputs, df_list):
         test_df.to_csv(plot_path[:-5] + f'RF_scoring_on_test_set_{RRS_version}_{i+1}.tsv', sep= '\t')
 
 def save_RF(split_fit_outputs):
+    """
+    Save fitted model as joblib file
 
+    Args:
+        split_fit_outputs (list): List of three outputs (that correspond to triplicates of each RRS version) from the function split_fit_rf
+    """
     for i, output in enumerate(split_fit_outputs):
         rf, _, _, _, _ = output
         with open(plot_path[:-5] + f'RF_model_{RRS_version}_{i+1}.joblib', 'wb') as f:

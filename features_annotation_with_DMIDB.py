@@ -1,16 +1,21 @@
-# This python script contains all the function that calculates and adds the features to PRS and RRS tables.
-# Perhaps for sequence i can retrieve them from the previous Protein objects by inheriting from DMIDB.py
+# This python script uses classes and methods from DMIDB to calculate features of SLiM and domains and add them to PRS and RRS tables. Original PRS and RRS file should contain only proteins, SLiM and domain annotations (including domain evalues) and without SLiM features.
+# Author: Chop Yan Lee
+
 import pandas as pd
 import time
 from DMIDB import *
 import DMIDB
 
-""" This script takes a directory and searches for feature files in that directory and read respective features into PRS and RRS.
-Original PRS and RRS file should contain only proteins, SLiM and domain annotations (including domain evalues)
-and without SLiM features. Using the annotate_slim_features will annotate SLiM features into the PRS and RRS. """
-""" dir_name specifies the path where protein features are stored in separate subdirectories."""
-
 def get_proteins(input_list):
+    """
+    Read in individual proteins from an input PRS or RRS file to produce a set of non-redundant proteins. The set of proteins is then used for InterfaceHandling.read_in_networks so that only network information of proteins in the set is read into InterfaceHandling.
+
+    Args:
+        input_list (str): Absolute path to the input PRS or RRS file
+
+    Returns:
+        protein_set (set): Set of UniProt IDs
+    """
     protein_set= set()
     for input_file in input_list:
         df= pd.read_csv(input_file, sep= '\t', index_col= 0)
@@ -21,6 +26,12 @@ def get_proteins(input_list):
     return protein_set
 
 def annotate_slim_domain_features_on_dataset(input_list):
+    """
+    Utilize classes and methods from DMIDB to calculate SLiM match features, as well as annotate domain features. The features are appended to the input tsv file and the new tsv file is saved with the suffix _slim_domain_features_annotated.
+
+    Args:
+        input_list (str): Absolute path to the input PRS or RRS file
+    """
     for input_file in input_list:
         df= pd.read_csv(input_file, sep= '\t', index_col= 0)
         new_cols= ['IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'TotalNetworkDegree', 'vertex_with_domain_in_real_network', 'DomainFreqbyProtein1', 'DomainFreqbyProtein2', 'DomainFreqinProteome1', 'DomainFreqinProteome2', 'DMISource']

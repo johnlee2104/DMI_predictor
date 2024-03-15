@@ -1,3 +1,6 @@
+# This script trains the final random forest model for deployment using ALL the data in the PRS and the selected RRS version.
+# Author: Chop Yan Lee
+
 import sys
 import pandas as pd
 import numpy as np
@@ -10,6 +13,18 @@ all_features= ['Probability', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC
 all_features_renamed= ['Probability', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'DomainFreqbyProtein', 'DomainFreqinProteome']
 
 def fit_final_model_imputer(PRS_path, RRS_path, save_path):
+    """
+    Fits a random forest classifier and a median imputer to the provided PRS and RRS datasets using ALL their data points (Data points with any NaN value is removed from the dataset). As some DMI requires two domains from the domain protein to bind to a SLiM, the domain features of the two domains are averaged to produce one domain feature for training. The concatenated PRS and RRS with NaN rows removed is saved as a tsv file.
+
+    Args:
+        PRS_path (str): Absolute path to the PRS dataset
+        RRS_path (str): Absolute path to the RRS dataset
+        save_path (str): Absolute path to where the concatenated dataframe should be saved
+
+    Returns:
+        rf (sklearn.ensemble.RandomForestClassifier): The fitted random forest model
+        median_imp (sklearn.impute.SimpleImputer): The fitted median imputer
+    """
     PRS= pd.read_csv(PRS_path, sep= '\t', index_col= 0)
     PRS['label']= 1
     RRS= pd.read_csv(RRS_path, sep= '\t', index_col= 0)
@@ -25,7 +40,7 @@ def fit_final_model_imputer(PRS_path, RRS_path, save_path):
     X= df[all_features_renamed].copy()
     y= df['label']
 
-    rf= RandomForestClassifier(n_estimators= 1000, oob_score= True, verbose= True, n_jobs= -1)
+    rf= RandomForestClassifier(n_estimators= 1000, oob_score= True, verbose= True, n_jobs= 1) # Tested the model again on 11.03.2024 and found that it only works if n_jobs is set to 1. -1 makes use of all CPU cores but somehow it does not work on my computer.
     rf.fit(X, y)
 
     median_imp= SimpleImputer(strategy= 'median')
@@ -36,6 +51,14 @@ def fit_final_model_imputer(PRS_path, RRS_path, save_path):
     return rf, median_imp
 
 def save_model_imputer(model, imputer, save_path):
+    """
+    Save the fitted model and imputer as joblib files.
+
+    Args:
+        model (sklearn.ensemble.RandomForestClassifier): The fitted random forest model
+        imputer (sklearn.impute.SimpleImputer): The fitted median imputer
+        save_path (str): Absolute path where the model and imputer should be saved
+    """
     with open(save_path + f'final_RF_model_with_{RRS_version}.joblib', 'wb') as f:
         dump(model, f)
 

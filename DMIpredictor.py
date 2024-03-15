@@ -1,11 +1,14 @@
+# This script executes DMI prediction using classes and functions from DMIDB.py.
+# Author: Chop Yan Lee
+
 # Workflow:
 ## - read in DMI file and SLiM types file (ELM class with regex)
 ## - user input either a pair of interacting proteins or a list of interacting protein pair in .txt file. (optparse)
 ## - set up a protein object for each of the input protein and a ProteinPair object for each of the input proteinpair
 ## - read in the sequences and sequence features like IUPred, etc and domain matches for all the protein objects
 ## - for each ProteinPair object, if there is a SLiM-binding domain, run regex search of the SLiM on the other interacting protein. Do DMI matching.
-## - calculate the SLiM feature for DMI match found by specifying the domain type option, missing features as np.nan so that they can be imputed
-## - impute missing features if needed, then do prediction on the feature. predicted_prob_1 saved in DMIMatch.score
+## - calculate the SLiM feature for DMI matches that are detected by specifying the domain type option, missing features as np.nan so that they can be imputed
+## - impute missing features if needed, then do prediction on the feature. The predicted probability should be saved in DMIMatch.score
 ## - output result in .tsv format similar to PRS and RRS. Add intx_id (protA_protB, sorted), which protein in the real network has the dommain match, degree of slim protein in the real network, comments (flag cases with domain count > 1, and those with two domains from two proteins), imputed feature
 ## - output should also be saved into MySQL
 
@@ -26,6 +29,12 @@ proteinpairlist= options.proteinpairlist
 features= ['Probability', 'IUPredShort', 'Anchor', 'DomainOverlap', 'qfo_RLC', 'qfo_RLCvar', 'vertebrates_RLC', 'vertebrates_RLCvar', 'mammalia_RLC', 'mammalia_RLCvar', 'metazoa_RLC', 'metazoa_RLCvar', 'DomainEnrichment_pvalue', 'DomainEnrichment_zscore', 'DomainFreqbyProtein', 'DomainFreqinProteome']
 
 def get_protein_pair():
+    """
+    Depending on the option, read the protein pair(s) into InterfaceHandling.protein_pairs_dict as DMIDB.ProteinPair instances
+
+    Returns:
+        input_proteins (set): UniProt IDs of individual proteins stored in a set
+    """
     input_proteins= set()
     if proteinpair != None:
         protein_pair= tuple(sorted(proteinpair.split(',')))
@@ -43,6 +52,9 @@ def get_protein_pair():
     return input_proteins
 
 def create_slim_match_in_protein_pair(): # use the domain match in the proteins of a protein pair to restrict create_slim_matches to only relevant dmi types
+    """
+    Perform DMI matching by first checking the domain matches in proteinA, following by calling the method Protein.create_slim_matches in proteinB to find matches of SLiM types that can bind to the domain matches in proteinA. The same process is repeated by switching proteinA and B to find all DMI matches. As opposed to InterfaceHandling.create_slim_matches_all_proteins, this function restricts DMI search to only the SLiM types that can bind to any domains of the interacting protein.
+    """
     for protpair in InterfaceHandling.protein_pairs_dict:
         protein_pairs= [(protpair[0], protpair[1]), (protpair[1], protpair[0])]
         for protein_pair in protein_pairs:
@@ -70,7 +82,14 @@ def create_slim_match_in_protein_pair(): # use the domain match in the proteins 
                     for slim_match_inst in InterfaceHandling.proteins_dict[protein_pair[1]].slim_matches_dict[dmi_type_inst.slim_id]:
                         slim_match_inst.get_slim_match_features(domain_type_list)
 
-def predict_DMI_match(model):
+def predict_DMI_match(model,imputer):
+    """
+    Iterate over InterfaceHandling.protein_pairs_dict and scores the DMI matches saved in the ProteinPair instances using a trained random forest model. The scores are saved in DMIMatch.score.
+
+    Args:
+        model (sklearn.ensemble.RandomForestClassifier): A trained random forest model
+        imputer (sklearn.impute.SimpleImputer): A fitted imputer
+    """
     for prot_pair, prot_pair_inst in InterfaceHandling.protein_pairs_dict.items():
         for slim_id, dmi_match_inst_list in prot_pair_inst.dmi_matches_dict.items():
             for dmi_match_inst in dmi_match_inst_list:
@@ -104,6 +123,9 @@ def predict_DMI_match(model):
                 dmi_match_inst.missing_feature= ','.join((np.array(features)[missing_indicator.ravel()]))
 
 def write_out_DMI_match():
+    """
+    Write out DMI matches, as well as their features and scores, in a .tsv file. Provide additional information, such as additional binding domain from another partner is required for DMI to form, is also saved in the Notes column. 
+    """
     if proteinpair != None:
         output_name= '_'.join([i for i in sorted(proteinpair.split(','))])
     else:
@@ -171,7 +193,11 @@ if __name__ == '__main__':
         InterfaceHandling.proteins_dict[protein].read_in_features(features_path)
     create_slim_match_in_protein_pair()
     InterfaceHandling.find_DMI_matches()
-    predict_DMI_match(RF)
+    predict_DMI_match(model=RF,imputer=imputer)
     write_out_DMI_match()
 
+# obsolete command
 # python3 DMIpredictor.py  ~/Coding/Python/DMI/protein_sequences_and_features/human_protein_sequences ../elm_classes_20210222.tsv ../elm_interaction_domains_complete_20210222.tsv ../domain_stuffs/all_smart_domains_with_frequency.txt ../domain_stuffs/all_pfam_domains_with_frequency.txt ../domain_stuffs/interpro_9606_smart_matches_20210122.json ../domain_stuffs/interpro_9606_pfam_matches_20210122.json ../protein_sequences_and_features/human_protein_sequences_features ~/Coding/Python/DMI/final_RF_model_with_RRSv4_3.joblib ~/Coding/Python/DMI/final_median_imputer_with_RRSv4_3.joblib -l test_protein_pair.txt
+
+# use this as an example!
+# python3 ~/Coding/Python/DMI/DMI_predictor/DMIpredictor.py  ~/Coding/Python/DMI/protein_sequences_and_features/human_protein_sequences ~/Coding/Python/DMI/DMI_types_annotation/20220311_elm_classes.tsv ~/Coding/Python/DMI/DMI_types_annotation/20220311_elm_interaction_domains_complete.tsv ~/Coding/Python/DMI/domain_stuffs/all_smart_domains_with_frequency.txt ~/Coding/Python/DMI/domain_stuffs/all_pfam_domains_with_frequency.txt ~/Coding/Python/DMI/domain_stuffs/interpro_9606_smart_matches_20210122.json ~/Coding/Python/DMI/domain_stuffs/interpro_9606_pfam_matches_20210122.json ~/Coding/Python/DMI/protein_sequences_and_features/human_protein_sequences_features ~/Coding/Python/DMI/ML_stuffs/final_RF_model_with_RRSv4_3.joblib ~/Coding/Python/DMI/ML_stuffs/final_median_imputer_with_RRSv4_3.joblib -l test_protein_pair.tx

@@ -1,4 +1,6 @@
-# Makes avg ROC and Precision Recall curve of all RRS versions in one plot
+# This script makes ROC and Precision Recall curves of all RRS versions averaged across their triplicates in one plot for comparison.
+# Author: Chop Yan Lee
+
 import sys
 import numpy as np
 import seaborn as sns
@@ -10,7 +12,12 @@ sns.set_style('darkgrid')
 color= sns.color_palette('deep')
 
 def make_stacked_PR_ROC_curves(RRS_paths): # input as list of RRS version paths
+    """
+    Use the RRS_version_avg_PR_scores.txt of all RRS versions to make ROC and PR curves within one single plot for comparison. The plot is saved as pdf file.
 
+    Args:
+        RRS_paths (list of str): List of absolute paths to the different RRS version directories
+    """
     # make ROC curve
     fig, ax= plt.subplots(figsize= (8,8))
 
